@@ -2,17 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"rentme/internal/app/commands"
 	availabilityapp "rentme/internal/app/handlers/availability"
 	bookingapp "rentme/internal/app/handlers/booking"
+	listingapp "rentme/internal/app/handlers/listings"
 	"rentme/internal/app/middleware"
 	"rentme/internal/app/outbox"
 	"rentme/internal/app/queries"
@@ -45,7 +50,10 @@ func main() {
 		Ready: func() error { return nil },
 	}, app.handlers)
 
-	app.seedDemoData(ctx, logger)
+	fixturesPath := getenv("LISTINGS_FIXTURES", filepath.Join("data", "listings.json"))
+	if err := app.loadListingFixtures(ctx, fixturesPath, logger); err != nil {
+		logger.Warn("listing fixtures load failed", "error", err, "path", fixturesPath)
+	}
 
 	go func() {
 		<-ctx.Done()
@@ -104,6 +112,14 @@ func buildApplication(logger *slog.Logger) application {
 		UoWFactory: uowFactory,
 	}
 	queries.RegisterHandler(queryBus, availabilityapp.GetCalendarQuery{}.Key(), availabilityHandler)
+	listingOverviewHandler := &listingapp.GetOverviewHandler{
+		UoWFactory: uowFactory,
+	}
+	queries.RegisterHandler(queryBus, listingapp.GetOverviewQuery{}.Key(), listingOverviewHandler)
+	catalogHandler := &listingapp.SearchCatalogHandler{
+		UoWFactory: uowFactory,
+	}
+	queries.RegisterHandler(queryBus, listingapp.SearchCatalogQuery{}.Key(), catalogHandler)
 
 	commandBusWithMiddleware := middleware.ChainCommands(
 		commandBus,
@@ -122,6 +138,9 @@ func buildApplication(logger *slog.Logger) application {
 			Availability: ginserver.AvailabilityHandler{
 				Queries: queryBusWithMiddleware,
 			},
+			Listing: ginserver.ListingHandler{
+				Queries: queryBusWithMiddleware,
+			},
 		},
 		repos: struct {
 			listings     *memory.ListingRepository
@@ -133,42 +152,123 @@ func buildApplication(logger *slog.Logger) application {
 	}
 }
 
-func (a application) seedDemoData(ctx context.Context, logger *slog.Logger) {
-	listing, err := listings.NewListing(listings.CreateListingParams{
-		ID:          "listing-demo-1",
-		Host:        "host-demo",
-		Title:       "Demo Loft Downtown",
-		Description: "A minimal listing used to demonstrate the booking API.",
-		Address: listings.Address{
-			Line1:   "Main Street 1",
-			City:    "Prague",
-			Country: "CZ",
-		},
-		Amenities:            []string{"wifi", "kitchen"},
-		GuestsLimit:          4,
-		MinNights:            1,
-		MaxNights:            30,
-		HouseRules:           []string{"no parties"},
-		CancellationPolicyID: "flexible",
-		Now:                  time.Now(),
-	})
+func (a application) loadListingFixtures(ctx context.Context, path string, logger *slog.Logger) error {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		logger.Error("failed to create demo listing", "error", err)
-		return
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Info("listing fixtures file not found, skipping", "path", path)
+			return nil
+		}
+		return fmt.Errorf("read fixtures: %w", err)
 	}
-	if err := listing.Activate(time.Now()); err != nil {
-		logger.Error("failed to activate demo listing", "error", err)
-		return
+	if len(data) == 0 {
+		logger.Warn("listing fixtures file empty", "path", path)
+		return nil
 	}
-	if err := a.repos.listings.Save(ctx, listing); err != nil {
-		logger.Error("cannot seed listing repository", "error", err)
-		return
+
+	var fixtures []listingFixture
+	if err := json.Unmarshal(data, &fixtures); err != nil {
+		return fmt.Errorf("decode fixtures: %w", err)
 	}
-	if _, err := a.repos.availability.Calendar(ctx, listing.ID); err != nil {
-		logger.Error("cannot seed availability repository", "error", err)
-		return
+	if len(fixtures) == 0 {
+		return nil
 	}
-	logger.Info("demo listing ready", "listing_id", listing.ID)
+
+	now := time.Now()
+	for _, fx := range fixtures {
+		params := listings.CreateListingParams{
+			ID:          listings.ListingID(fx.ID),
+			Host:        listings.HostID(fx.Host),
+			Title:       fx.Title,
+			Description: fx.Description,
+			Address: listings.Address{
+				Line1:   fx.Address.Line1,
+				Line2:   fx.Address.Line2,
+				City:    fx.Address.City,
+				Country: fx.Address.Country,
+				Lat:     fx.Address.Lat,
+				Lon:     fx.Address.Lon,
+			},
+			Amenities:            append([]string(nil), fx.Amenities...),
+			GuestsLimit:          fx.GuestsLimit,
+			MinNights:            fx.MinNights,
+			MaxNights:            fx.MaxNights,
+			HouseRules:           append([]string(nil), fx.HouseRules...),
+			CancellationPolicyID: fx.CancellationPolicyID,
+			Tags:                 append([]string(nil), fx.Tags...),
+			Highlights:           append([]string(nil), fx.Highlights...),
+			NightlyRateCents:     fx.NightlyRateCents,
+			Bedrooms:             fx.Bedrooms,
+			Bathrooms:            fx.Bathrooms,
+			AreaSquareMeters:     fx.AreaSquareMeters,
+			ThumbnailURL:         fx.ThumbnailURL,
+			Rating:               fx.Rating,
+			AvailableFrom:        parseFixtureTime(fx.AvailableFrom, now),
+			Now:                  now,
+		}
+
+		listing, err := listings.NewListing(params)
+		if err != nil {
+			logger.Error("fixture invalid", "listing_id", fx.ID, "error", err)
+			continue
+		}
+		if err := listing.Activate(now); err != nil {
+			logger.Error("fixture activation failed", "listing_id", fx.ID, "error", err)
+			continue
+		}
+		if err := a.repos.listings.Save(ctx, listing); err != nil {
+			logger.Error("cannot store fixture listing", "listing_id", fx.ID, "error", err)
+			continue
+		}
+		if _, err := a.repos.availability.Calendar(ctx, listing.ID); err != nil {
+			logger.Error("cannot prepare availability for fixture", "listing_id", fx.ID, "error", err)
+			continue
+		}
+		logger.Info("listing fixture imported", "listing_id", listing.ID)
+	}
+	return nil
+}
+
+type listingFixture struct {
+	ID                   string         `json:"id"`
+	Host                 string         `json:"host"`
+	Title                string         `json:"title"`
+	Description          string         `json:"description"`
+	Address              fixtureAddress `json:"address"`
+	Amenities            []string       `json:"amenities"`
+	GuestsLimit          int            `json:"guests_limit"`
+	MinNights            int            `json:"min_nights"`
+	MaxNights            int            `json:"max_nights"`
+	HouseRules           []string       `json:"house_rules"`
+	CancellationPolicyID string         `json:"cancellation_policy_id"`
+	Tags                 []string       `json:"tags"`
+	Highlights           []string       `json:"highlights"`
+	NightlyRateCents     int64          `json:"nightly_rate_cents"`
+	Bedrooms             int            `json:"bedrooms"`
+	Bathrooms            int            `json:"bathrooms"`
+	AreaSquareMeters     float64        `json:"area_sq_m"`
+	ThumbnailURL         string         `json:"thumbnail_url"`
+	Rating               float64        `json:"rating"`
+	AvailableFrom        string         `json:"available_from"`
+}
+
+type fixtureAddress struct {
+	Line1   string  `json:"line1"`
+	Line2   string  `json:"line2"`
+	City    string  `json:"city"`
+	Country string  `json:"country"`
+	Lat     float64 `json:"lat"`
+	Lon     float64 `json:"lon"`
+}
+
+func parseFixtureTime(value string, fallback time.Time) time.Time {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t
+	}
+	return fallback
 }
 
 func getenv(key, fallback string) string {

@@ -3,6 +3,8 @@ package memory
 import (
 	"context"
 	"errors"
+	"sort"
+	"strings"
 	"sync"
 
 	domainavailability "rentme/internal/domain/availability"
@@ -48,6 +50,117 @@ func (r *ListingRepository) Save(ctx context.Context, listing *domainlistings.Li
 	defer r.mu.Unlock()
 	r.items[listing.ID] = listing
 	return nil
+}
+
+// Search returns listings that satisfy provided filters.
+func (r *ListingRepository) Search(ctx context.Context, params domainlistings.SearchParams) (domainlistings.SearchResult, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	opts := params.Normalized()
+	matches := make([]*domainlistings.Listing, 0, len(r.items))
+	for _, listing := range r.items {
+		if ctx != nil {
+			select {
+			case <-ctx.Done():
+				return domainlistings.SearchResult{}, ctx.Err()
+			default:
+			}
+		}
+
+		if opts.OnlyActive && listing.State != domainlistings.ListingActive {
+			continue
+		}
+		if opts.City != "" && !strings.EqualFold(listing.Address.City, opts.City) {
+			continue
+		}
+		if opts.Country != "" && !strings.EqualFold(listing.Address.Country, opts.Country) {
+			continue
+		}
+		if opts.MinGuests > 0 && listing.GuestsLimit < opts.MinGuests {
+			continue
+		}
+		if opts.PriceMinCents > 0 && listing.NightlyRateCents < opts.PriceMinCents {
+			continue
+		}
+		if opts.PriceMaxCents > 0 && listing.NightlyRateCents > opts.PriceMaxCents {
+			continue
+		}
+		if !tokensMatch(listing.Amenities, opts.Amenities) {
+			continue
+		}
+		if !tokensMatch(listing.Tags, opts.Tags) {
+			continue
+		}
+		matches = append(matches, listing)
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		switch opts.Sort {
+		case domainlistings.SortByPriceDesc:
+			if matches[i].NightlyRateCents == matches[j].NightlyRateCents {
+				return matches[i].Rating > matches[j].Rating
+			}
+			return matches[i].NightlyRateCents > matches[j].NightlyRateCents
+		case domainlistings.SortByRating:
+			if matches[i].Rating == matches[j].Rating {
+				return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+			}
+			return matches[i].Rating > matches[j].Rating
+		case domainlistings.SortByNewest:
+			if matches[i].AvailableFrom.Equal(matches[j].AvailableFrom) {
+				return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+			}
+			return matches[i].AvailableFrom.After(matches[j].AvailableFrom)
+		default:
+			if matches[i].NightlyRateCents == matches[j].NightlyRateCents {
+				return matches[i].Rating > matches[j].Rating
+			}
+			return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+		}
+	})
+
+	total := len(matches)
+	start := opts.Offset
+	if start > total {
+		start = total
+	}
+	end := start + opts.Limit
+	if end > total {
+		end = total
+	}
+
+	return domainlistings.SearchResult{
+		Items: matches[start:end],
+		Total: total,
+	}, nil
+}
+
+func tokensMatch(values []string, required []string) bool {
+	if len(required) == 0 {
+		return true
+	}
+	if len(values) == 0 {
+		return false
+	}
+	index := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(strings.ToLower(value))
+		if value == "" {
+			continue
+		}
+		index[value] = struct{}{}
+	}
+	for _, token := range required {
+		token = strings.TrimSpace(strings.ToLower(token))
+		if token == "" {
+			continue
+		}
+		if _, ok := index[token]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // AvailabilityRepository keeps availability calendars in memory.

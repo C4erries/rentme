@@ -15,6 +15,7 @@ var (
 	ErrInvalidState    = errors.New("listings: invalid state transition")
 	ErrAddressRequired = errors.New("listings: address must be provided when activating")
 	ErrTitleRequired   = errors.New("listings: title is required")
+	ErrNightlyRate     = errors.New("listings: nightly rate must be non-negative")
 )
 
 type ListingID string
@@ -54,6 +55,15 @@ type Listing struct {
 	HouseRules           []string
 	CancellationPolicyID string
 	State                ListingState
+	Tags                 []string
+	Highlights           []string
+	NightlyRateCents     int64
+	Bedrooms             int
+	Bathrooms            int
+	AreaSquareMeters     float64
+	ThumbnailURL         string
+	Rating               float64
+	AvailableFrom        time.Time
 	Version              int64
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
@@ -63,6 +73,7 @@ type Listing struct {
 type ListingRepository interface {
 	ByID(ctx context.Context, id ListingID) (*Listing, error)
 	Save(ctx context.Context, listing *Listing) error
+	Search(ctx context.Context, params SearchParams) (SearchResult, error)
 }
 
 type CreateListingParams struct {
@@ -77,6 +88,15 @@ type CreateListingParams struct {
 	MaxNights            int
 	HouseRules           []string
 	CancellationPolicyID string
+	Tags                 []string
+	Highlights           []string
+	NightlyRateCents     int64
+	Bedrooms             int
+	Bathrooms            int
+	AreaSquareMeters     float64
+	ThumbnailURL         string
+	Rating               float64
+	AvailableFrom        time.Time
 	Now                  time.Time
 }
 
@@ -96,6 +116,13 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 	if params.MinNights > params.MaxNights {
 		return nil, ErrNightsRange
 	}
+	if params.NightlyRateCents < 0 {
+		return nil, ErrNightlyRate
+	}
+	availableFrom := params.AvailableFrom
+	if availableFrom.IsZero() {
+		availableFrom = params.Now
+	}
 
 	listing := &Listing{
 		ID:                   params.ID,
@@ -110,6 +137,15 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 		HouseRules:           append([]string(nil), params.HouseRules...),
 		CancellationPolicyID: params.CancellationPolicyID,
 		State:                ListingDraft,
+		Tags:                 append([]string(nil), params.Tags...),
+		Highlights:           append([]string(nil), params.Highlights...),
+		NightlyRateCents:     params.NightlyRateCents,
+		Bedrooms:             params.Bedrooms,
+		Bathrooms:            params.Bathrooms,
+		AreaSquareMeters:     params.AreaSquareMeters,
+		ThumbnailURL:         strings.TrimSpace(params.ThumbnailURL),
+		Rating:               params.Rating,
+		AvailableFrom:        availableFrom.UTC(),
 		CreatedAt:            params.Now.UTC(),
 		UpdatedAt:            params.Now.UTC(),
 	}
