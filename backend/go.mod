@@ -6,6 +6,7 @@ require (
 	github.com/IBM/sarama v1.46.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
+	github.com/lmittmann/tint v1.1.2
 	go.mongodb.org/mongo-driver v1.17.6
 )
 
