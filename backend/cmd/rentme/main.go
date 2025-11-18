@@ -180,10 +180,11 @@ func (a application) loadListingFixtures(ctx context.Context, path string, logge
 	now := time.Now()
 	for _, fx := range fixtures {
 		params := listings.CreateListingParams{
-			ID:          listings.ListingID(fx.ID),
-			Host:        listings.HostID(fx.Host),
-			Title:       fx.Title,
-			Description: fx.Description,
+			ID:           listings.ListingID(fx.ID),
+			Host:         listings.HostID(fx.Host),
+			Title:        fx.Title,
+			Description:  fx.Description,
+			PropertyType: fx.PropertyType,
 			Address: listings.Address{
 				Line1:   fx.Address.Line1,
 				Line2:   fx.Address.Line2,
@@ -237,6 +238,7 @@ type listingFixture struct {
 	Host                 string         `json:"host"`
 	Title                string         `json:"title"`
 	Description          string         `json:"description"`
+	PropertyType         string         `json:"property_type"`
 	Address              fixtureAddress `json:"address"`
 	Amenities            []string       `json:"amenities"`
 	GuestsLimit          int            `json:"guests_limit"`

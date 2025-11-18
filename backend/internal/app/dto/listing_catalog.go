@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"math"
 	"time"
 
 	domainlistings "rentme/internal/domain/listings"
@@ -15,71 +16,102 @@ type ListingCatalog struct {
 
 // ListingCard is a lightweight representation for catalog cards.
 type ListingCard struct {
-	ID               string    `json:"id"`
-	Title            string    `json:"title"`
-	City             string    `json:"city"`
-	Country          string    `json:"country"`
-	AddressLine      string    `json:"address_line"`
-	GuestsLimit      int       `json:"guests_limit"`
-	MinNights        int       `json:"min_nights"`
-	MaxNights        int       `json:"max_nights"`
-	NightlyRateCents int64     `json:"nightly_rate_cents"`
-	Bedrooms         int       `json:"bedrooms"`
-	Bathrooms        int       `json:"bathrooms"`
-	AreaSquareMeters float64   `json:"area_sq_m"`
-	Tags             []string  `json:"tags"`
-	Amenities        []string  `json:"amenities"`
-	Highlights       []string  `json:"highlights"`
-	ThumbnailURL     string    `json:"thumbnail_url"`
-	Rating           float64   `json:"rating"`
-	AvailableFrom    time.Time `json:"available_from"`
-	State            string    `json:"state"`
+	ID               string              `json:"id"`
+	Title            string              `json:"title"`
+	City             string              `json:"city"`
+	Country          string              `json:"country"`
+	AddressLine      string              `json:"address_line"`
+	PropertyType     string              `json:"property_type"`
+	GuestsLimit      int                 `json:"guests_limit"`
+	MinNights        int                 `json:"min_nights"`
+	MaxNights        int                 `json:"max_nights"`
+	NightlyRateCents int64               `json:"nightly_rate_cents"`
+	Bedrooms         int                 `json:"bedrooms"`
+	Bathrooms        int                 `json:"bathrooms"`
+	AreaSquareMeters float64             `json:"area_sq_m"`
+	Tags             []string            `json:"tags"`
+	Amenities        []string            `json:"amenities"`
+	Highlights       []string            `json:"highlights"`
+	ThumbnailURL     string              `json:"thumbnail_url"`
+	Rating           float64             `json:"rating"`
+	AvailableFrom    time.Time           `json:"available_from"`
+	State            string              `json:"state"`
+	Availability     ListingAvailability `json:"availability"`
+}
+
+// ListingAvailability describes availability for selected filters.
+type ListingAvailability struct {
+	CheckIn     time.Time `json:"check_in"`
+	CheckOut    time.Time `json:"check_out"`
+	Nights      int       `json:"nights"`
+	Guests      int       `json:"guests"`
+	IsAvailable bool      `json:"is_available"`
+	Reason      string    `json:"reason,omitempty"`
 }
 
 // CatalogFilters echoes back the applied filters.
 type CatalogFilters struct {
 	City          string   `json:"city"`
 	Country       string   `json:"country"`
+	Location      string   `json:"location"`
 	Tags          []string `json:"tags"`
 	Amenities     []string `json:"amenities"`
 	MinGuests     int      `json:"min_guests"`
 	PriceMinCents int64    `json:"price_min_cents"`
 	PriceMaxCents int64    `json:"price_max_cents"`
+	PropertyTypes []string `json:"property_types"`
+	CheckIn       string   `json:"check_in"`
+	CheckOut      string   `json:"check_out"`
 }
 
 // CatalogMetadata describes pagination.
 type CatalogMetadata struct {
-	Total  int    `json:"total"`
-	Count  int    `json:"count"`
-	Limit  int    `json:"limit"`
-	Offset int    `json:"offset"`
-	Sort   string `json:"sort"`
+	Total      int    `json:"total"`
+	Count      int    `json:"count"`
+	Limit      int    `json:"limit"`
+	Offset     int    `json:"offset"`
+	Sort       string `json:"sort"`
+	Page       int    `json:"page"`
+	TotalPages int    `json:"total_pages"`
 }
 
 // MapCatalog builds a DTO collection based on a search result.
-func MapCatalog(result domainlistings.SearchResult, params domainlistings.SearchParams) ListingCatalog {
+func MapCatalog(result domainlistings.SearchResult, params domainlistings.SearchParams, availability map[domainlistings.ListingID]ListingAvailability) ListingCatalog {
 	normalized := params.Normalized()
 	items := make([]ListingCard, 0, len(result.Items))
 	for _, listing := range result.Items {
-		items = append(items, MapListingCard(listing))
+		card := MapListingCard(listing)
+		if availability != nil {
+			if report, ok := availability[listing.ID]; ok {
+				card.Availability = report
+			}
+		}
+		items = append(items, card)
 	}
+	page, totalPages := resolvePaging(normalized.Limit, normalized.Offset, result.Total)
 	return ListingCatalog{
 		Items: items,
 		Filters: CatalogFilters{
 			City:          normalized.City,
 			Country:       normalized.Country,
+			Location:      normalized.LocationQuery,
 			Tags:          append([]string(nil), normalized.Tags...),
 			Amenities:     append([]string(nil), normalized.Amenities...),
 			MinGuests:     normalized.MinGuests,
 			PriceMinCents: normalized.PriceMinCents,
 			PriceMaxCents: normalized.PriceMaxCents,
+			PropertyTypes: append([]string(nil), normalized.PropertyTypes...),
+			CheckIn:       formatDate(normalized.CheckIn),
+			CheckOut:      formatDate(normalized.CheckOut),
 		},
 		Meta: CatalogMetadata{
-			Total:  result.Total,
-			Count:  len(items),
-			Limit:  normalized.Limit,
-			Offset: normalized.Offset,
-			Sort:   string(normalized.Sort),
+			Total:      result.Total,
+			Count:      len(items),
+			Limit:      normalized.Limit,
+			Offset:     normalized.Offset,
+			Sort:       string(normalized.Sort),
+			Page:       page,
+			TotalPages: totalPages,
 		},
 	}
 }
@@ -95,6 +127,7 @@ func MapListingCard(listing *domainlistings.Listing) ListingCard {
 		City:             listing.Address.City,
 		Country:          listing.Address.Country,
 		AddressLine:      listing.Address.Line1,
+		PropertyType:     listing.PropertyType,
 		GuestsLimit:      listing.GuestsLimit,
 		MinNights:        listing.MinNights,
 		MaxNights:        listing.MaxNights,
@@ -110,4 +143,26 @@ func MapListingCard(listing *domainlistings.Listing) ListingCard {
 		AvailableFrom:    listing.AvailableFrom,
 		State:            string(listing.State),
 	}
+}
+
+func formatDate(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format("2006-01-02")
+}
+
+func resolvePaging(limit, offset, total int) (int, int) {
+	if limit <= 0 {
+		return 1, 1
+	}
+	page := (offset / limit) + 1
+	totalPages := 1
+	if total > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(limit)))
+		if totalPages == 0 {
+			totalPages = 1
+		}
+	}
+	return page, totalPages
 }

@@ -77,6 +77,11 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 		if opts.Country != "" && !strings.EqualFold(listing.Address.Country, opts.Country) {
 			continue
 		}
+		if opts.LocationQuery != "" {
+			if !matchLocation(listing, opts.LocationQuery) {
+				continue
+			}
+		}
 		if opts.MinGuests > 0 && listing.GuestsLimit < opts.MinGuests {
 			continue
 		}
@@ -86,10 +91,16 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 		if opts.PriceMaxCents > 0 && listing.NightlyRateCents > opts.PriceMaxCents {
 			continue
 		}
+		if !opts.CheckIn.IsZero() && listing.AvailableFrom.After(opts.CheckIn) {
+			continue
+		}
 		if !tokensMatch(listing.Amenities, opts.Amenities) {
 			continue
 		}
 		if !tokensMatch(listing.Tags, opts.Tags) {
+			continue
+		}
+		if len(opts.PropertyTypes) > 0 && !propertyTypeMatches(listing.PropertyType, opts.PropertyTypes) {
 			continue
 		}
 		matches = append(matches, listing)
@@ -161,6 +172,35 @@ func tokensMatch(values []string, required []string) bool {
 		}
 	}
 	return true
+}
+
+func matchLocation(listing *domainlistings.Listing, needle string) bool {
+	if listing == nil {
+		return false
+	}
+	full := strings.ToLower(strings.Join([]string{
+		listing.Address.City,
+		listing.Address.Country,
+		listing.Address.Line1,
+		listing.Title,
+	}, " "))
+	return strings.Contains(full, needle)
+}
+
+func propertyTypeMatches(value string, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	current := strings.TrimSpace(strings.ToLower(value))
+	if current == "" {
+		return false
+	}
+	for _, option := range allowed {
+		if current == option {
+			return true
+		}
+	}
+	return false
 }
 
 // AvailabilityRepository keeps availability calendars in memory.

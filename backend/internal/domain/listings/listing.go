@@ -47,6 +47,7 @@ type Listing struct {
 	Host                 HostID
 	Title                string
 	Description          string
+	PropertyType         string
 	Address              Address
 	Amenities            []string
 	GuestsLimit          int
@@ -81,6 +82,7 @@ type CreateListingParams struct {
 	Host                 HostID
 	Title                string
 	Description          string
+	PropertyType         string
 	Address              Address
 	Amenities            []string
 	GuestsLimit          int
@@ -129,6 +131,7 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 		Host:                 params.Host,
 		Title:                strings.TrimSpace(params.Title),
 		Description:          strings.TrimSpace(params.Description),
+		PropertyType:         strings.TrimSpace(params.PropertyType),
 		Address:              params.Address,
 		Amenities:            append([]string(nil), params.Amenities...),
 		GuestsLimit:          params.GuestsLimit,

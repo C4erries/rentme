@@ -1,6 +1,9 @@
 package listings
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // CatalogSort defines a supported ordering.
 type CatalogSort string
@@ -19,11 +22,15 @@ const (
 type SearchParams struct {
 	City          string
 	Country       string
+	LocationQuery string
 	Tags          []string
 	Amenities     []string
 	MinGuests     int
 	PriceMinCents int64
 	PriceMaxCents int64
+	PropertyTypes []string
+	CheckIn       time.Time
+	CheckOut      time.Time
 	Sort          CatalogSort
 	Limit         int
 	Offset        int
@@ -35,8 +42,15 @@ func (p SearchParams) Normalized() SearchParams {
 	normalized := p
 	normalized.City = strings.TrimSpace(strings.ToLower(normalized.City))
 	normalized.Country = strings.TrimSpace(strings.ToLower(normalized.Country))
+	normalized.LocationQuery = strings.TrimSpace(strings.ToLower(normalized.LocationQuery))
 	normalized.Tags = normalizeTokens(normalized.Tags)
 	normalized.Amenities = normalizeTokens(normalized.Amenities)
+	normalized.PropertyTypes = normalizeTokens(normalized.PropertyTypes)
+	normalized.CheckIn = normalizeDate(normalized.CheckIn)
+	normalized.CheckOut = normalizeDate(normalized.CheckOut)
+	if !normalized.CheckIn.IsZero() && !normalized.CheckOut.IsZero() && !normalized.CheckOut.After(normalized.CheckIn) {
+		normalized.CheckOut = time.Time{}
+	}
 	if normalized.MinGuests < 0 {
 		normalized.MinGuests = 0
 	}
@@ -81,6 +95,14 @@ func normalizeTokens(tokens []string) []string {
 		out = append(out, token)
 	}
 	return out
+}
+
+func normalizeDate(value time.Time) time.Time {
+	if value.IsZero() {
+		return value
+	}
+	y, m, d := value.UTC().Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 // SearchResult wraps search hits with meta.

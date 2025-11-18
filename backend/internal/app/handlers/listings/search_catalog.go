@@ -2,11 +2,13 @@ package listings
 
 import (
 	"context"
+	"time"
 
 	"rentme/internal/app/dto"
 	"rentme/internal/app/queries"
 	"rentme/internal/app/uow"
 	domainlistings "rentme/internal/domain/listings"
+	"rentme/internal/domain/shared/daterange"
 )
 
 const searchCatalogKey = "listings.catalog"
@@ -15,14 +17,18 @@ const searchCatalogKey = "listings.catalog"
 type SearchCatalogQuery struct {
 	City          string
 	Country       string
+	Location      string
 	Tags          []string
 	Amenities     []string
 	MinGuests     int
 	PriceMinCents int64
 	PriceMaxCents int64
+	PropertyTypes []string
 	Sort          string
 	Limit         int
 	Offset        int
+	CheckIn       time.Time
+	CheckOut      time.Time
 }
 
 func (q SearchCatalogQuery) Key() string { return searchCatalogKey }
@@ -50,14 +56,18 @@ func (h *SearchCatalogHandler) Handle(ctx context.Context, q SearchCatalogQuery)
 	searchParams := domainlistings.SearchParams{
 		City:          q.City,
 		Country:       q.Country,
+		LocationQuery: q.Location,
 		Tags:          append([]string(nil), q.Tags...),
 		Amenities:     append([]string(nil), q.Amenities...),
 		MinGuests:     q.MinGuests,
 		PriceMinCents: q.PriceMinCents,
 		PriceMaxCents: q.PriceMaxCents,
+		PropertyTypes: append([]string(nil), q.PropertyTypes...),
 		Sort:          domainlistings.CatalogSort(q.Sort),
 		Limit:         q.Limit,
 		Offset:        q.Offset,
+		CheckIn:       q.CheckIn,
+		CheckOut:      q.CheckOut,
 		OnlyActive:    true,
 	}
 
@@ -66,7 +76,36 @@ func (h *SearchCatalogHandler) Handle(ctx context.Context, q SearchCatalogQuery)
 		return dto.ListingCatalog{}, err
 	}
 
-	return dto.MapCatalog(result, searchParams), nil
+	var availability map[domainlistings.ListingID]dto.ListingAvailability
+	if !q.CheckIn.IsZero() && !q.CheckOut.IsZero() {
+		dateRange, err := daterange.New(q.CheckIn, q.CheckOut)
+		if err != nil {
+			return dto.ListingCatalog{}, err
+		}
+		availability = make(map[domainlistings.ListingID]dto.ListingAvailability, len(result.Items))
+		for _, listing := range result.Items {
+			cal, err := unit.Availability().Calendar(ctx, listing.ID)
+			if err != nil {
+				return dto.ListingCatalog{}, err
+			}
+			isAvailable := cal.CanReserve(dateRange)
+			availability[listing.ID] = dto.ListingAvailability{
+				CheckIn:     dateRange.CheckIn,
+				CheckOut:    dateRange.CheckOut,
+				Nights:      dateRange.Nights(),
+				Guests:      searchParams.MinGuests,
+				IsAvailable: isAvailable,
+				Reason: func() string {
+					if isAvailable {
+						return ""
+					}
+					return "unavailable"
+				}(),
+			}
+		}
+	}
+
+	return dto.MapCatalog(result, searchParams, availability), nil
 }
 
 var _ queries.Handler[SearchCatalogQuery, dto.ListingCatalog] = (*SearchCatalogHandler)(nil)

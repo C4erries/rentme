@@ -1,6 +1,7 @@
 package ginserver
 
 import (
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,17 +25,57 @@ func (h ListingHandler) Catalog(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "listing handler unavailable"})
 		return
 	}
+	location := c.Query("location")
+	checkInRaw := c.Query("check_in")
+	checkOutRaw := c.Query("check_out")
+	checkIn, _ := parseFlexibleTime(checkInRaw)
+	checkOut, _ := parseFlexibleTime(checkOutRaw)
+	if (checkInRaw != "" || checkOutRaw != "") && (checkIn.IsZero() || checkOut.IsZero()) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "both check_in and check_out must be valid dates"})
+		return
+	}
+	if !checkIn.IsZero() && !checkOut.IsZero() && !checkOut.After(checkIn) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "check_out must be after check_in"})
+		return
+	}
+	guests := parseInt(c.Query("guests"))
+	if guests == 0 {
+		guests = parseInt(c.Query("min_guests"))
+	}
+	limit := parseIntWithDefault(c.Query("limit"), 24)
+	page := parseIntWithDefault(c.Query("page"), 1)
+	if page < 1 {
+		page = 1
+	}
+	offset := parseInt(c.Query("offset"))
+	if offset == 0 && page > 1 {
+		offset = (page - 1) * limit
+	}
+	priceMin := parseInt64(c.Query("price_min_cents"))
+	priceMax := parseInt64(c.Query("price_max_cents"))
+	if priceMin == 0 {
+		priceMin = parseMajorCurrencyToCents(c.Query("price_min"))
+	}
+	if priceMax == 0 {
+		priceMax = parseMajorCurrencyToCents(c.Query("price_max"))
+	}
+	propertyTypes := mergeSlices(splitCSV(c.Query("type")), splitCSV(c.Query("types")))
+
 	query := listingapp.SearchCatalogQuery{
 		City:          c.Query("city"),
 		Country:       c.Query("country"),
+		Location:      location,
 		Tags:          splitCSV(c.Query("tags")),
 		Amenities:     splitCSV(c.Query("amenities")),
-		MinGuests:     parseInt(c.Query("min_guests")),
-		PriceMinCents: parseInt64(c.Query("price_min_cents")),
-		PriceMaxCents: parseInt64(c.Query("price_max_cents")),
-		Limit:         parseIntWithDefault(c.Query("limit"), 24),
-		Offset:        parseInt(c.Query("offset")),
+		MinGuests:     guests,
+		PriceMinCents: priceMin,
+		PriceMaxCents: priceMax,
+		PropertyTypes: propertyTypes,
+		Limit:         limit,
+		Offset:        offset,
 		Sort:          c.Query("sort"),
+		CheckIn:       checkIn,
+		CheckOut:      checkOut,
 	}
 	result, err := queries.Ask[listingapp.SearchCatalogQuery, dto.ListingCatalog](c.Request.Context(), h.Queries, query)
 	if err != nil {
@@ -150,4 +191,46 @@ func parseInt64(raw string) int64 {
 		return 0
 	}
 	return value
+}
+
+func parseMajorCurrencyToCents(raw string) int64 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0
+	}
+	return int64(math.Round(value * 100))
+}
+
+func mergeSlices(parts ...[]string) []string {
+	var merged []string
+	for _, slice := range parts {
+		if len(slice) == 0 {
+			continue
+		}
+		merged = append(merged, slice...)
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(merged))
+	result := make([]string, 0, len(merged))
+	for _, item := range merged {
+		lower := strings.ToLower(strings.TrimSpace(item))
+		if lower == "" {
+			continue
+		}
+		if _, ok := seen[lower]; ok {
+			continue
+		}
+		seen[lower] = struct{}{}
+		result = append(result, lower)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
