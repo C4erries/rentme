@@ -27,7 +27,13 @@ func Transaction(factory uow.UoWFactory, optsProvider TxOptionsProvider) Command
 			if err != nil {
 				return nil, err
 			}
-			execCtx := uow.ContextWithUnitOfWork(ctx, unit)
+			execCtx := ctx
+			if injector, ok := unit.(interface {
+				InjectContext(context.Context) context.Context
+			}); ok {
+				execCtx = injector.InjectContext(ctx)
+			}
+			execCtx = uow.ContextWithUnitOfWork(execCtx, unit)
 			committed := false
 			defer func() {
 				if !committed {
