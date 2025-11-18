@@ -2,6 +2,7 @@ package ginserver
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -32,6 +33,11 @@ type Handlers struct {
 }
 
 func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandlers, h Handlers) *http.Server {
+	mode := configureGinMode(cfg.Env)
+	if obsMW.Logger != nil {
+		obsMW.Logger.Info("gin initialized", "mode", mode)
+	}
+
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(obsMW.RequestID())
@@ -67,4 +73,18 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	}
 
 	return &http.Server{Addr: cfg.HTTPAddr, Handler: router}
+}
+
+func configureGinMode(env string) string {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "debug":
+		gin.SetMode(gin.DebugMode)
+		return gin.DebugMode
+	case "test", "testing":
+		gin.SetMode(gin.TestMode)
+		return gin.TestMode
+	default:
+		gin.SetMode(gin.ReleaseMode)
+		return gin.ReleaseMode
+	}
 }

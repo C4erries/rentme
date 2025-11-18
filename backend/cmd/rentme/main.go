@@ -50,7 +50,10 @@ func main() {
 		Ready: func() error { return nil },
 	}, app.handlers)
 
-	fixturesPath := getenv("LISTINGS_FIXTURES", filepath.Join("data", "listings.json"))
+	fixturesPath := getenv("LISTINGS_FIXTURES", "")
+	if fixturesPath == "" {
+		fixturesPath = defaultListingFixturesPath()
+	}
 	if err := app.loadListingFixtures(ctx, fixturesPath, logger); err != nil {
 		logger.Warn("listing fixtures load failed", "error", err, "path", fixturesPath)
 	}
@@ -269,6 +272,19 @@ func parseFixtureTime(value string, fallback time.Time) time.Time {
 		return t
 	}
 	return fallback
+}
+
+func defaultListingFixturesPath() string {
+	candidates := []string{
+		filepath.Join("data", "listings.json"),
+		filepath.Join("backend", "data", "listings.json"),
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return candidates[0]
 }
 
 func getenv(key, fallback string) string {
