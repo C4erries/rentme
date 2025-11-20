@@ -13,6 +13,7 @@ const (
 	SortByPriceDesc CatalogSort = "price_desc"
 	SortByRating    CatalogSort = "rating_desc"
 	SortByNewest    CatalogSort = "newest"
+	SortByUpdated   CatalogSort = "updated"
 
 	defaultSearchLimit = 24
 	maxSearchLimit     = 60
@@ -20,6 +21,8 @@ const (
 
 // SearchParams describe catalog filters and paging options.
 type SearchParams struct {
+	Host          HostID
+	States        []ListingState
 	City          string
 	Country       string
 	LocationQuery string
@@ -71,6 +74,7 @@ func (p SearchParams) Normalized() SearchParams {
 	}
 	switch normalized.Sort {
 	case SortByPriceAsc, SortByPriceDesc, SortByRating, SortByNewest:
+	case SortByUpdated:
 	default:
 		normalized.Sort = SortByPriceAsc
 	}

@@ -71,6 +71,12 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 		if opts.OnlyActive && listing.State != domainlistings.ListingActive {
 			continue
 		}
+		if opts.Host != "" && listing.Host != opts.Host {
+			continue
+		}
+		if len(opts.States) > 0 && !stateIncluded(listing.State, opts.States) {
+			continue
+		}
 		if opts.City != "" && !strings.EqualFold(listing.Address.City, opts.City) {
 			continue
 		}
@@ -123,6 +129,11 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 				return matches[i].NightlyRateCents < matches[j].NightlyRateCents
 			}
 			return matches[i].AvailableFrom.After(matches[j].AvailableFrom)
+		case domainlistings.SortByUpdated:
+			if matches[i].UpdatedAt.Equal(matches[j].UpdatedAt) {
+				return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+			}
+			return matches[i].UpdatedAt.After(matches[j].UpdatedAt)
 		default:
 			if matches[i].NightlyRateCents == matches[j].NightlyRateCents {
 				return matches[i].Rating > matches[j].Rating
@@ -203,6 +214,15 @@ func propertyTypeMatches(value string, allowed []string) bool {
 	return false
 }
 
+func stateIncluded(state domainlistings.ListingState, allowed []domainlistings.ListingState) bool {
+	for _, candidate := range allowed {
+		if state == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 // AvailabilityRepository keeps availability calendars in memory.
 type AvailabilityRepository struct {
 	mu        sync.RWMutex
@@ -265,6 +285,27 @@ func (r *BookingRepository) Save(ctx context.Context, booking *domainbooking.Boo
 	booking.Version++
 	r.items[booking.ID] = booking
 	return nil
+}
+
+func (r *BookingRepository) ListByGuest(ctx context.Context, guestID string) ([]*domainbooking.Booking, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	id := strings.TrimSpace(guestID)
+	if id == "" {
+		return nil, errors.New("memory: guest id required")
+	}
+	matches := make([]*domainbooking.Booking, 0)
+	for _, booking := range r.items {
+		if booking.GuestID == id {
+			matches = append(matches, booking)
+		}
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].CreatedAt.After(matches[j].CreatedAt)
+	})
+	result := make([]*domainbooking.Booking, len(matches))
+	copy(result, matches)
+	return result, nil
 }
 
 // ReviewsRepository is a lightweight in-memory review store.

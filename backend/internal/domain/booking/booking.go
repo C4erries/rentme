@@ -53,6 +53,7 @@ type Booking struct {
 type Repository interface {
 	ByID(ctx context.Context, id BookingID) (*Booking, error)
 	Save(ctx context.Context, booking *Booking) error
+	ListByGuest(ctx context.Context, guestID string) ([]*Booking, error)
 }
 
 type CreateParams struct {

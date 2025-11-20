@@ -18,13 +18,16 @@ import (
 	availabilityapp "rentme/internal/app/handlers/availability"
 	bookingapp "rentme/internal/app/handlers/booking"
 	listingapp "rentme/internal/app/handlers/listings"
+	meapp "rentme/internal/app/handlers/me"
 	"rentme/internal/app/middleware"
 	"rentme/internal/app/outbox"
 	"rentme/internal/app/queries"
+	authsvc "rentme/internal/app/services/auth"
 	"rentme/internal/domain/listings"
 	"rentme/internal/infra/config"
 	ginserver "rentme/internal/infra/http/gin"
 	"rentme/internal/infra/obs"
+	"rentme/internal/infra/security"
 	"rentme/internal/infra/storage/memory"
 )
 
@@ -92,6 +95,16 @@ func buildApplication(logger *slog.Logger) application {
 	pricingPort := memory.PricingPortAdapter{Calculator: pricingCalc}
 	outboxStore := memory.NewOutbox()
 	idStore := memory.NewIdempotencyStore()
+	userRepo := memory.NewUserRepository()
+	sessionStore := memory.NewSessionStore()
+	authService := &authsvc.Service{
+		Users:      userRepo,
+		Sessions:   sessionStore,
+		Passwords:  security.BcryptHasher{},
+		Tokens:     security.RandomTokenGenerator{Size: 48},
+		SessionTTL: 24 * time.Hour,
+		Logger:     logger,
+	}
 
 	uowFactory := memory.Factory{
 		ListingsRepo:     listingsRepo,
@@ -110,6 +123,15 @@ func buildApplication(logger *slog.Logger) application {
 	}
 	commands.RegisterHandler(commandBus, bookingapp.RequestBookingCommand{}.Key(), bookingHandler)
 
+	createListingHandler := &listingapp.CreateHostListingHandler{Logger: logger}
+	commands.RegisterHandler(commandBus, listingapp.CreateHostListingCommand{}.Key(), createListingHandler)
+	updateListingHandler := &listingapp.UpdateHostListingHandler{Logger: logger}
+	commands.RegisterHandler(commandBus, listingapp.UpdateHostListingCommand{}.Key(), updateListingHandler)
+	publishListingHandler := &listingapp.PublishHostListingHandler{Logger: logger}
+	commands.RegisterHandler(commandBus, listingapp.PublishHostListingCommand{}.Key(), publishListingHandler)
+	unpublishListingHandler := &listingapp.UnpublishHostListingHandler{Logger: logger}
+	commands.RegisterHandler(commandBus, listingapp.UnpublishHostListingCommand{}.Key(), unpublishListingHandler)
+
 	queryBus := queries.NewInMemoryBus()
 	availabilityHandler := &availabilityapp.GetCalendarHandler{
 		UoWFactory: uowFactory,
@@ -123,6 +145,27 @@ func buildApplication(logger *slog.Logger) application {
 		UoWFactory: uowFactory,
 	}
 	queries.RegisterHandler(queryBus, listingapp.SearchCatalogQuery{}.Key(), catalogHandler)
+	hostCatalogHandler := &listingapp.ListHostListingsHandler{
+		UoWFactory: uowFactory,
+		Logger:     logger,
+	}
+	queries.RegisterHandler(queryBus, listingapp.ListHostListingsQuery{}.Key(), hostCatalogHandler)
+	hostDetailHandler := &listingapp.GetHostListingHandler{
+		UoWFactory: uowFactory,
+		Logger:     logger,
+	}
+	queries.RegisterHandler(queryBus, listingapp.GetHostListingQuery{}.Key(), hostDetailHandler)
+	priceSuggestionHandler := &listingapp.HostListingPriceSuggestionHandler{
+		UoWFactory: uowFactory,
+		Pricing:    pricingPort,
+		Logger:     logger,
+	}
+	queries.RegisterHandler(queryBus, listingapp.HostListingPriceSuggestionQuery{}.Key(), priceSuggestionHandler)
+	meBookingsHandler := &meapp.ListGuestBookingsHandler{
+		UoWFactory: uowFactory,
+		Logger:     logger,
+	}
+	queries.RegisterHandler(queryBus, meapp.ListGuestBookingsQuery{}.Key(), meBookingsHandler)
 
 	commandBusWithMiddleware := middleware.ChainCommands(
 		commandBus,
@@ -144,6 +187,23 @@ func buildApplication(logger *slog.Logger) application {
 			Listing: ginserver.ListingHandler{
 				Queries: queryBusWithMiddleware,
 			},
+			HostListing: ginserver.HostListingHandler{
+				Commands: commandBusWithMiddleware,
+				Queries:  queryBusWithMiddleware,
+				Logger:   logger,
+			},
+			Auth: ginserver.AuthHandler{
+				Service: authService,
+				Logger:  logger,
+			},
+			Me: ginserver.MeHandler{
+				Queries: queryBusWithMiddleware,
+				Logger:  logger,
+			},
+			AuthMiddleware: ginserver.AuthMiddleware{
+				Service: authService,
+				Logger:  logger,
+			}.Handle,
 		},
 		repos: struct {
 			listings     *memory.ListingRepository

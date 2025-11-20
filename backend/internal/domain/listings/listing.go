@@ -64,6 +64,7 @@ type Listing struct {
 	AreaSquareMeters     float64
 	ThumbnailURL         string
 	Rating               float64
+	Photos               []string
 	AvailableFrom        time.Time
 	Version              int64
 	CreatedAt            time.Time
@@ -100,6 +101,7 @@ type CreateListingParams struct {
 	Rating               float64
 	AvailableFrom        time.Time
 	Now                  time.Time
+	Photos               []string
 }
 
 func NewListing(params CreateListingParams) (*Listing, error) {
@@ -148,6 +150,7 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 		AreaSquareMeters:     params.AreaSquareMeters,
 		ThumbnailURL:         strings.TrimSpace(params.ThumbnailURL),
 		Rating:               params.Rating,
+		Photos:               append([]string(nil), params.Photos...),
 		AvailableFrom:        availableFrom.UTC(),
 		CreatedAt:            params.Now.UTC(),
 		UpdatedAt:            params.Now.UTC(),
@@ -196,6 +199,75 @@ func (l *Listing) UpdateDetails(title, description string, rules, amenities []st
 	l.HouseRules = append([]string(nil), rules...)
 	l.UpdatedAt = now.UTC()
 	l.Record(newListingUpdatedEvent(l.ID, now.UTC()))
+	return nil
+}
+
+type UpdateListingParams struct {
+	Title                string
+	Description          string
+	PropertyType         string
+	Address              Address
+	Amenities            []string
+	HouseRules           []string
+	Tags                 []string
+	Highlights           []string
+	ThumbnailURL         string
+	CancellationPolicyID string
+	GuestsLimit          int
+	MinNights            int
+	MaxNights            int
+	NightlyRateCents     int64
+	Bedrooms             int
+	Bathrooms            int
+	AreaSquareMeters     float64
+	AvailableFrom        time.Time
+	Photos               []string
+	Now                  time.Time
+}
+
+func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
+	now := params.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	now = now.UTC()
+
+	if strings.TrimSpace(params.Title) == "" {
+		return ErrTitleRequired
+	}
+	if params.GuestsLimit < 1 {
+		return ErrGuestsLimit
+	}
+	if params.MinNights > params.MaxNights {
+		return ErrNightsRange
+	}
+	if params.NightlyRateCents < 0 {
+		return ErrNightlyRate
+	}
+
+	l.Title = strings.TrimSpace(params.Title)
+	l.Description = strings.TrimSpace(params.Description)
+	l.PropertyType = strings.TrimSpace(params.PropertyType)
+	l.Address = params.Address
+	l.Amenities = append([]string(nil), params.Amenities...)
+	l.HouseRules = append([]string(nil), params.HouseRules...)
+	l.Tags = append([]string(nil), params.Tags...)
+	l.Highlights = append([]string(nil), params.Highlights...)
+	l.CancellationPolicyID = strings.TrimSpace(params.CancellationPolicyID)
+	l.GuestsLimit = params.GuestsLimit
+	l.MinNights = params.MinNights
+	l.MaxNights = params.MaxNights
+	l.NightlyRateCents = params.NightlyRateCents
+	l.Bedrooms = params.Bedrooms
+	l.Bathrooms = params.Bathrooms
+	l.AreaSquareMeters = params.AreaSquareMeters
+	l.ThumbnailURL = strings.TrimSpace(params.ThumbnailURL)
+	if !params.AvailableFrom.IsZero() {
+		l.AvailableFrom = params.AvailableFrom.UTC()
+	}
+	l.Photos = append([]string(nil), params.Photos...)
+	l.UpdatedAt = now
+	l.Record(newListingUpdatedEvent(l.ID, now))
 	return nil
 }
 

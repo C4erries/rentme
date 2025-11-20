@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -51,6 +52,35 @@ func (r *BookingRepository) Save(ctx context.Context, b *domainbooking.Booking) 
 	}
 	b.Version = doc.Version
 	return nil
+}
+
+func (r *BookingRepository) ListByGuest(ctx context.Context, guestID string) ([]*domainbooking.Booking, error) {
+	filter := bson.M{"guest_id": guestID}
+	cur, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var items []*domainbooking.Booking
+	for cur.Next(ctx) {
+		var doc bookingDocument
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		agg, err := doc.toAggregate()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, agg)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
+	return items, nil
 }
 
 type bookingDocument struct {

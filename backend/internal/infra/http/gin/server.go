@@ -26,10 +26,24 @@ type ListingHTTP interface {
 	Overview(c *gin.Context)
 }
 
+type HostListingHTTP interface {
+	List(c *gin.Context)
+	Create(c *gin.Context)
+	Get(c *gin.Context)
+	Update(c *gin.Context)
+	Publish(c *gin.Context)
+	Unpublish(c *gin.Context)
+	PriceSuggestion(c *gin.Context)
+}
+
 type Handlers struct {
-	Booking      BookingHTTP
-	Availability AvailabilityHTTP
-	Listing      ListingHTTP
+	Booking        BookingHTTP
+	Availability   AvailabilityHTTP
+	Listing        ListingHTTP
+	HostListing    HostListingHTTP
+	Auth           AuthHTTP
+	Me             MeHTTP
+	AuthMiddleware gin.HandlerFunc
 }
 
 func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandlers, h Handlers) *http.Server {
@@ -53,6 +67,9 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 		},
 		MaxAge: 12 * time.Hour,
 	}))
+	if h.AuthMiddleware != nil {
+		router.Use(h.AuthMiddleware)
+	}
 
 	registerSwaggerRoutes(router)
 
@@ -60,6 +77,12 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	router.GET("/readyz", health.Readyz)
 
 	api := router.Group("/api/v1")
+	if h.Auth != nil {
+		api.POST("/auth/register", h.Auth.Register)
+		api.POST("/auth/login", h.Auth.Login)
+		api.POST("/auth/logout", h.Auth.Logout)
+		api.GET("/auth/me", h.Auth.Me)
+	}
 	if h.Booking != nil {
 		api.POST("/bookings", h.Booking.Create)
 		api.POST("/bookings/:id/accept", h.Booking.Accept)
@@ -70,6 +93,20 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	if h.Listing != nil {
 		api.GET("/listings", h.Listing.Catalog)
 		api.GET("/listings/:id/overview", h.Listing.Overview)
+	}
+	if h.HostListing != nil {
+		hostGroup := api.Group("/host/listings")
+		hostGroup.GET("", h.HostListing.List)
+		hostGroup.POST("", h.HostListing.Create)
+		hostGroup.GET("/:id", h.HostListing.Get)
+		hostGroup.PUT("/:id", h.HostListing.Update)
+		hostGroup.POST("/:id/publish", h.HostListing.Publish)
+		hostGroup.POST("/:id/unpublish", h.HostListing.Unpublish)
+		hostGroup.POST("/:id/price-suggestion", h.HostListing.PriceSuggestion)
+	}
+	if h.Me != nil {
+		meGroup := api.Group("/me")
+		meGroup.GET("/bookings", h.Me.ListBookings)
 	}
 
 	return &http.Server{Addr: cfg.HTTPAddr, Handler: router}
