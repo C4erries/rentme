@@ -10,12 +10,15 @@ services:
       MONGO_DB: rentals
       KAFKA_BROKERS: "kafka:9092"
       KAFKA_TOPIC_PREFIX: rentme
+      PRICING_MODE: ml
+      ML_PRICING_URL: "http://mlpricing:8000/predict"
     ports:
       - "8080:8080"
     restart: unless-stopped
     depends_on:
       - kafka
       - mongo
+      - mlpricing
   frontend:
     build:
       context: ./frontend
@@ -28,6 +31,13 @@ services:
       - "3000:80"
     depends_on:
       - rentme
+  mlpricing:
+    build:
+      context: ./mlrent
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
   mongo:
     image: mongo:7
     restart: unless-stopped

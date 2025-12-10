@@ -24,9 +24,11 @@ import (
 	"rentme/internal/app/queries"
 	authsvc "rentme/internal/app/services/auth"
 	"rentme/internal/domain/listings"
+	domainpricing "rentme/internal/domain/pricing"
 	"rentme/internal/infra/config"
 	ginserver "rentme/internal/infra/http/gin"
 	"rentme/internal/infra/obs"
+	mlpricing "rentme/internal/infra/pricing"
 	"rentme/internal/infra/security"
 	"rentme/internal/infra/storage/memory"
 )
@@ -43,12 +45,14 @@ func main() {
 		logger.Warn("using fallback configuration", "error", err)
 		cfg.Env = env
 		cfg.HTTPAddr = getenv("HTTP_ADDR", ":8080")
+		cfg.PricingMode = strings.ToLower(getenv("PRICING_MODE", "memory"))
+		cfg.MLPricingURL = getenv("ML_PRICING_URL", "http://localhost:8000/predict")
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = ":8080"
 	}
 
-	app := buildApplication(logger)
+	app := buildApplication(logger, cfg)
 	server := ginserver.NewServer(cfg, obs.Middleware{Logger: logger}, obs.HealthHandlers{
 		Ready: func() error { return nil },
 	}, app.handlers)
@@ -86,12 +90,12 @@ type application struct {
 	}
 }
 
-func buildApplication(logger *slog.Logger) application {
+func buildApplication(logger *slog.Logger, cfg config.Config) application {
 	listingsRepo := memory.NewListingRepository()
 	availabilityRepo := memory.NewAvailabilityRepository()
 	bookingRepo := memory.NewBookingRepository()
 	reviewsRepo := memory.NewReviewsRepository()
-	pricingCalc := memory.NewPricingEngine()
+	pricingCalc := resolvePricingCalculator(cfg, listingsRepo, logger)
 	pricingPort := memory.PricingPortAdapter{Calculator: pricingCalc}
 	outboxStore := memory.NewOutbox()
 	idStore := memory.NewIdempotencyStore()
@@ -212,6 +216,26 @@ func buildApplication(logger *slog.Logger) application {
 			listings:     listingsRepo,
 			availability: availabilityRepo,
 		},
+	}
+}
+
+func resolvePricingCalculator(cfg config.Config, listingsRepo *memory.ListingRepository, logger *slog.Logger) domainpricing.Calculator {
+	mode := strings.ToLower(strings.TrimSpace(cfg.PricingMode))
+	switch mode {
+	case "ml":
+		endpoint := cfg.MLPricingURL
+		if endpoint == "" {
+			endpoint = "http://localhost:8000/predict"
+		}
+		client := &http.Client{Timeout: 5 * time.Second}
+		return &mlpricing.MLPricingEngine{
+			Client:   client,
+			Endpoint: endpoint,
+			Listings: listingsRepo,
+			Logger:   logger,
+		}
+	default:
+		return memory.NewPricingEngine()
 	}
 }
 

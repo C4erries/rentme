@@ -18,6 +18,8 @@ type Config struct {
 	IdempotencyTTL     time.Duration
 	OutboxPollInterval time.Duration
 	RetryBackoff       []time.Duration
+	PricingMode        string
+	MLPricingURL       string
 }
 
 // Load parses configuration from the current environment.
@@ -28,6 +30,8 @@ func Load() (Config, error) {
 		MongoURI:         os.Getenv("MONGO_URI"),
 		MongoDB:          getEnv("MONGO_DB", "rentals"),
 		KafkaTopicPrefix: getEnv("KAFKA_TOPIC_PREFIX", ""),
+		PricingMode:      strings.ToLower(getEnv("PRICING_MODE", "memory")),
+		MLPricingURL:     getEnv("ML_PRICING_URL", "http://localhost:8000/predict"),
 	}
 	brokers := getEnv("KAFKA_BROKERS", "")
 	if brokers != "" {
@@ -63,6 +67,12 @@ func Load() (Config, error) {
 	}
 	if len(cfg.KafkaBrokers) == 0 {
 		return Config{}, fmt.Errorf("KAFKA_BROKERS is required")
+	}
+	if cfg.PricingMode == "" {
+		cfg.PricingMode = "memory"
+	}
+	if cfg.MLPricingURL == "" {
+		cfg.MLPricingURL = "http://localhost:8000/predict"
 	}
 	return cfg, nil
 }
