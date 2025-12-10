@@ -12,6 +12,7 @@ type ListingAddress struct {
 	Line1   string  `json:"line1"`
 	Line2   string  `json:"line2"`
 	City    string  `json:"city"`
+	Region  string  `json:"region"`
 	Country string  `json:"country"`
 	Lat     float64 `json:"lat"`
 	Lon     float64 `json:"lon"`
@@ -59,6 +60,7 @@ func MapListingOverview(
 		Line1:   listing.Address.Line1,
 		Line2:   listing.Address.Line2,
 		City:    listing.Address.City,
+		Region:  listing.Address.Region,
 		Country: listing.Address.Country,
 		Lat:     listing.Address.Lat,
 		Lon:     listing.Address.Lon,

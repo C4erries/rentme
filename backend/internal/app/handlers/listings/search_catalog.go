@@ -16,6 +16,7 @@ const searchCatalogKey = "listings.catalog"
 // SearchCatalogQuery describes request filters.
 type SearchCatalogQuery struct {
 	City          string
+	Region        string
 	Country       string
 	Location      string
 	Tags          []string
@@ -55,6 +56,7 @@ func (h *SearchCatalogHandler) Handle(ctx context.Context, q SearchCatalogQuery)
 
 	searchParams := domainlistings.SearchParams{
 		City:          q.City,
+		Region:        q.Region,
 		Country:       q.Country,
 		LocationQuery: q.Location,
 		Tags:          append([]string(nil), q.Tags...),

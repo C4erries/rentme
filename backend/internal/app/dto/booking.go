@@ -18,6 +18,7 @@ type BookingListingSnapshot struct {
 	Title        string `json:"title"`
 	AddressLine1 string `json:"address_line1"`
 	City         string `json:"city"`
+	Region       string `json:"region"`
 	Country      string `json:"country"`
 	ThumbnailURL string `json:"thumbnail_url"`
 }
@@ -55,6 +56,7 @@ func MapGuestBookingSummary(
 		snapshot.Title = listing.Title
 		snapshot.AddressLine1 = listing.Address.Line1
 		snapshot.City = listing.Address.City
+		snapshot.Region = listing.Address.Region
 		snapshot.Country = listing.Address.Country
 		snapshot.ThumbnailURL = listing.ThumbnailURL
 	}

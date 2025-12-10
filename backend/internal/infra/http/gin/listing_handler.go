@@ -63,6 +63,7 @@ func (h ListingHandler) Catalog(c *gin.Context) {
 
 	query := listingapp.SearchCatalogQuery{
 		City:          c.Query("city"),
+		Region:        c.Query("region"),
 		Country:       c.Query("country"),
 		Location:      location,
 		Tags:          splitCSV(c.Query("tags")),

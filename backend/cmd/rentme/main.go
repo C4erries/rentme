@@ -270,9 +270,16 @@ func (a application) loadListingFixtures(ctx context.Context, path string, logge
 			Description:  fx.Description,
 			PropertyType: fx.PropertyType,
 			Address: listings.Address{
-				Line1:   fx.Address.Line1,
-				Line2:   fx.Address.Line2,
-				City:    fx.Address.City,
+				Line1: fx.Address.Line1,
+				Line2: fx.Address.Line2,
+				City:  fx.Address.City,
+				Region: func() string {
+					r := strings.TrimSpace(fx.Address.Region)
+					if r != "" {
+						return r
+					}
+					return fx.Address.Country
+				}(),
 				Country: fx.Address.Country,
 				Lat:     fx.Address.Lat,
 				Lon:     fx.Address.Lon,
@@ -353,6 +360,7 @@ type fixtureAddress struct {
 	Line1   string  `json:"line1"`
 	Line2   string  `json:"line2"`
 	City    string  `json:"city"`
+	Region  string  `json:"region"`
 	Country string  `json:"country"`
 	Lat     float64 `json:"lat"`
 	Lon     float64 `json:"lon"`

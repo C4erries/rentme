@@ -19,6 +19,7 @@ type ListingCard struct {
 	ID               string              `json:"id"`
 	Title            string              `json:"title"`
 	City             string              `json:"city"`
+	Region           string              `json:"region"`
 	Country          string              `json:"country"`
 	AddressLine      string              `json:"address_line"`
 	PropertyType     string              `json:"property_type"`
@@ -52,6 +53,7 @@ type ListingAvailability struct {
 // CatalogFilters echoes back the applied filters.
 type CatalogFilters struct {
 	City          string   `json:"city"`
+	Region        string   `json:"region"`
 	Country       string   `json:"country"`
 	Location      string   `json:"location"`
 	Tags          []string `json:"tags"`
@@ -93,6 +95,7 @@ func MapCatalog(result domainlistings.SearchResult, params domainlistings.Search
 		Items: items,
 		Filters: CatalogFilters{
 			City:          normalized.City,
+			Region:        normalized.Region,
 			Country:       normalized.Country,
 			Location:      normalized.LocationQuery,
 			Tags:          append([]string(nil), normalized.Tags...),
@@ -125,6 +128,7 @@ func MapListingCard(listing *domainlistings.Listing) ListingCard {
 		ID:               string(listing.ID),
 		Title:            listing.Title,
 		City:             listing.Address.City,
+		Region:           listing.Address.Region,
 		Country:          listing.Address.Country,
 		AddressLine:      listing.Address.Line1,
 		PropertyType:     listing.PropertyType,

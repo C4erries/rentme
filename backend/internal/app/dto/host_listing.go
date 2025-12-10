@@ -23,6 +23,7 @@ type HostListingSummary struct {
 	Title            string    `json:"title"`
 	Status           string    `json:"status"`
 	City             string    `json:"city"`
+	Region           string    `json:"region"`
 	Country          string    `json:"country"`
 	NightlyRateCents int64     `json:"nightly_rate_cents"`
 	GuestsLimit      int       `json:"guests_limit"`
@@ -81,6 +82,7 @@ func MapHostListingSummary(listing *domainlistings.Listing) HostListingSummary {
 		Title:            listing.Title,
 		Status:           toStatus(listing.State),
 		City:             listing.Address.City,
+		Region:           listing.Address.Region,
 		Country:          listing.Address.Country,
 		NightlyRateCents: listing.NightlyRateCents,
 		GuestsLimit:      listing.GuestsLimit,
@@ -107,6 +109,7 @@ func MapHostListingDetail(listing *domainlistings.Listing) HostListingDetail {
 		Line1:   listing.Address.Line1,
 		Line2:   listing.Address.Line2,
 		City:    listing.Address.City,
+		Region:  listing.Address.Region,
 		Country: listing.Address.Country,
 		Lat:     listing.Address.Lat,
 		Lon:     listing.Address.Lon,

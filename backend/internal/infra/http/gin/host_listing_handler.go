@@ -291,9 +291,13 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		Line1:   strings.TrimSpace(req.Address.Line1),
 		Line2:   strings.TrimSpace(req.Address.Line2),
 		City:    strings.TrimSpace(req.Address.City),
+		Region:  strings.TrimSpace(req.Address.Region),
 		Country: strings.TrimSpace(req.Address.Country),
 		Lat:     req.Address.Lat,
 		Lon:     req.Address.Lon,
+	}
+	if address.Region == "" {
+		address.Region = address.Country
 	}
 
 	payload := listingapp.HostListingPayload{
@@ -395,6 +399,7 @@ type hostListingAddress struct {
 	Line1   string  `json:"line1"`
 	Line2   string  `json:"line2"`
 	City    string  `json:"city"`
+	Region  string  `json:"region"`
 	Country string  `json:"country"`
 	Lat     float64 `json:"lat"`
 	Lon     float64 `json:"lon"`

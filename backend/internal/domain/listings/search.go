@@ -24,6 +24,7 @@ type SearchParams struct {
 	Host          HostID
 	States        []ListingState
 	City          string
+	Region        string
 	Country       string
 	LocationQuery string
 	Tags          []string
@@ -44,6 +45,7 @@ type SearchParams struct {
 func (p SearchParams) Normalized() SearchParams {
 	normalized := p
 	normalized.City = strings.TrimSpace(strings.ToLower(normalized.City))
+	normalized.Region = strings.TrimSpace(strings.ToLower(normalized.Region))
 	normalized.Country = strings.TrimSpace(strings.ToLower(normalized.Country))
 	normalized.LocationQuery = strings.TrimSpace(strings.ToLower(normalized.LocationQuery))
 	normalized.Tags = normalizeTokens(normalized.Tags)

@@ -80,6 +80,9 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 		if opts.City != "" && !strings.EqualFold(listing.Address.City, opts.City) {
 			continue
 		}
+		if opts.Region != "" && !strings.EqualFold(listing.Address.Region, opts.Region) {
+			continue
+		}
 		if opts.Country != "" && !strings.EqualFold(listing.Address.Country, opts.Country) {
 			continue
 		}
@@ -191,6 +194,7 @@ func matchLocation(listing *domainlistings.Listing, needle string) bool {
 	}
 	full := strings.ToLower(strings.Join([]string{
 		listing.Address.City,
+		listing.Address.Region,
 		listing.Address.Country,
 		listing.Address.Line1,
 		listing.Title,

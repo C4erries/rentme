@@ -37,13 +37,17 @@ type Address struct {
 	Line1   string
 	Line2   string
 	City    string
+	Region  string
 	Country string
 	Lat     float64
 	Lon     float64
 }
 
 func (a Address) Valid() bool {
-	return strings.TrimSpace(a.Line1) != "" && strings.TrimSpace(a.City) != "" && strings.TrimSpace(a.Country) != ""
+	line1 := strings.TrimSpace(a.Line1)
+	city := strings.TrimSpace(a.City)
+	region := strings.TrimSpace(a.Region)
+	return line1 != "" && city != "" && region != ""
 }
 
 type Listing struct {
@@ -129,7 +133,10 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 	if params.GuestsLimit < 1 {
 		return nil, ErrGuestsLimit
 	}
-	if params.MinNights > params.MaxNights {
+	if params.MaxNights < 0 {
+		return nil, ErrNightsRange
+	}
+	if params.MaxNights > 0 && params.MinNights > params.MaxNights {
 		return nil, ErrNightsRange
 	}
 	if params.NightlyRateCents < 0 {
@@ -198,7 +205,7 @@ func (l *Listing) Activate(now time.Time) error {
 	if l.GuestsLimit < 1 {
 		return ErrGuestsLimit
 	}
-	if l.MinNights > l.MaxNights {
+	if l.MaxNights > 0 && l.MinNights > l.MaxNights {
 		return ErrNightsRange
 	}
 	l.State = ListingActive
@@ -270,7 +277,10 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	if params.GuestsLimit < 1 {
 		return ErrGuestsLimit
 	}
-	if params.MinNights > params.MaxNights {
+	if params.MaxNights < 0 {
+		return ErrNightsRange
+	}
+	if params.MaxNights > 0 && params.MinNights > params.MaxNights {
 		return ErrNightsRange
 	}
 	if params.NightlyRateCents < 0 {

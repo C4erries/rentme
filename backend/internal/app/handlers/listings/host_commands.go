@@ -218,6 +218,17 @@ func (h *PublishHostListingHandler) Handle(ctx context.Context, cmd PublishHostL
 	}
 
 	if err := listing.Activate(time.Now()); err != nil {
+		if h.Logger != nil {
+			h.Logger.Warn(
+				"host listing publish failed",
+				"listing_id", listing.ID,
+				"host_id", cmd.HostID,
+				"error", err,
+				"address_line1", listing.Address.Line1,
+				"address_city", listing.Address.City,
+				"address_region", listing.Address.Region,
+			)
+		}
 		return nil, err
 	}
 	if err := unit.Listings().Save(ctx, listing); err != nil {

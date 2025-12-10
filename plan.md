@@ -150,3 +150,8 @@
   - чат;
   - работа админки.
 
+
+## Task 1 progress (Dec 10)
+- Backend: MaxNights now allows 0 as unlimited; region added to listing address across domain/DTO/HTTP; publish logs improved and address validation uses region instead of country.
+- Frontend: wizard steps are clickable, address uses region field, max nights unlimited toggle added, price suggestion waits for listingId, host listings page includes �back to home�.
+- Builds: go build ./cmd/rentme and npm run build succeeded.
