@@ -75,6 +75,12 @@ type HostListingDetail struct {
 	StateLabel           string         `json:"status"`
 }
 
+type HostListingPhotoUploadResult struct {
+	ListingID    string   `json:"listing_id"`
+	Photos       []string `json:"photos"`
+	ThumbnailURL string   `json:"thumbnail_url"`
+}
+
 func MapHostListingSummary(listing *domainlistings.Listing) HostListingSummary {
 	if listing == nil {
 		return HostListingSummary{}

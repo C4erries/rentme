@@ -1,15 +1,19 @@
 package ginserver
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
 	gin "github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"rentme/internal/app/commands"
 	"rentme/internal/app/dto"
@@ -17,6 +21,8 @@ import (
 	"rentme/internal/app/queries"
 	domainlistings "rentme/internal/domain/listings"
 )
+
+const maxListingPhotoSizeBytes int64 = 10 * 1024 * 1024
 
 type HostListingHandler struct {
 	Commands commands.Bus
@@ -234,6 +240,80 @@ func (h HostListingHandler) PriceSuggestion(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func (h HostListingHandler) UploadPhoto(c *gin.Context) {
+	principal, ok := requireRole(c, "host")
+	if !ok {
+		return
+	}
+	if h.Commands == nil {
+		h.respondWithError(c, http.StatusServiceUnavailable, errors.New("commands bus unavailable"))
+		return
+	}
+
+	listingID := strings.TrimSpace(c.Param("id"))
+	if listingID == "" {
+		h.respondWithError(c, http.StatusBadRequest, errors.New("listing id is required"))
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		h.respondWithError(c, http.StatusBadRequest, fmt.Errorf("file is required: %w", err))
+		return
+	}
+	if fileHeader.Size <= 0 {
+		h.respondWithError(c, http.StatusBadRequest, errors.New("file is empty"))
+		return
+	}
+	if fileHeader.Size > maxListingPhotoSizeBytes {
+		h.respondWithError(c, http.StatusBadRequest, fmt.Errorf("file too large (max %d MB)", maxListingPhotoSizeBytes/1024/1024))
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		h.respondWithError(c, http.StatusBadRequest, err)
+		return
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxListingPhotoSizeBytes+1024))
+	if err != nil {
+		h.respondWithError(c, http.StatusInternalServerError, fmt.Errorf("cannot read file: %w", err))
+		return
+	}
+	if len(data) == 0 {
+		h.respondWithError(c, http.StatusBadRequest, errors.New("file is empty"))
+		return
+	}
+	if int64(len(data)) > maxListingPhotoSizeBytes {
+		h.respondWithError(c, http.StatusBadRequest, fmt.Errorf("file too large (max %d MB)", maxListingPhotoSizeBytes/1024/1024))
+		return
+	}
+
+	contentType := http.DetectContentType(data)
+	if !isAllowedImageType(contentType) {
+		h.respondWithError(c, http.StatusBadRequest, fmt.Errorf("unsupported content type: %s", contentType))
+		return
+	}
+
+	objectKey := buildPhotoObjectKey(listingID, fileHeader.Filename, contentType)
+	cmd := listingapp.UploadHostListingPhotoCommand{
+		HostID:      principal.ID,
+		ListingID:   listingID,
+		ObjectKey:   objectKey,
+		ContentType: contentType,
+		Reader:      bytes.NewReader(data),
+	}
+	result, err := commands.Dispatch[listingapp.UploadHostListingPhotoCommand, *dto.HostListingPhotoUploadResult](c.Request.Context(), h.Commands, cmd)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, result)
+}
+
 func (h HostListingHandler) handleError(c *gin.Context, err error) {
 	if errors.Is(err, listingapp.ErrListingNotOwned) {
 		h.respondWithError(c, http.StatusNotFound, err)
@@ -270,6 +350,63 @@ func parseRange(checkInRaw, checkOutRaw string) (time.Time, time.Time, error) {
 		return time.Time{}, time.Time{}, errors.New("check_out must be a valid date")
 	}
 	return checkIn, checkOut, nil
+}
+
+func isAllowedImageType(contentType string) bool {
+	switch strings.ToLower(contentType) {
+	case "image/jpeg", "image/jpg", "image/png", "image/webp":
+		return true
+	default:
+		return false
+	}
+}
+
+func extensionForContentType(contentType string) string {
+	switch strings.ToLower(contentType) {
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ""
+	}
+}
+
+func buildPhotoObjectKey(listingID, filename, contentType string) string {
+	ext := extensionForContentType(contentType)
+	if ext == "" {
+		ext = strings.ToLower(path.Ext(filename))
+	}
+	if ext == "" {
+		ext = ".img"
+	}
+	safeListing := sanitizePathToken(listingID)
+	return fmt.Sprintf("listings/%s/%s%s", safeListing, uuid.NewString(), ext)
+}
+
+func sanitizePathToken(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "listing"
+	}
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('-')
+		}
+	}
+	result := strings.Trim(b.String(), "-")
+	if result == "" {
+		return "listing"
+	}
+	return result
 }
 
 func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayload, error) {
@@ -377,7 +514,8 @@ func isValidationError(err error) bool {
 		errors.Is(err, domainlistings.ErrBuildingAge),
 		errors.Is(err, domainlistings.ErrRentalTerm),
 		errors.Is(err, domainlistings.ErrAddressRequired),
-		errors.Is(err, domainlistings.ErrInvalidState):
+		errors.Is(err, domainlistings.ErrInvalidState),
+		errors.Is(err, domainlistings.ErrPhotoURL):
 		return true
 	}
 	return false

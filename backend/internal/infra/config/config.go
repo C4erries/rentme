@@ -20,6 +20,12 @@ type Config struct {
 	RetryBackoff       []time.Duration
 	PricingMode        string
 	MLPricingURL       string
+	S3Endpoint         string
+	S3PublicEndpoint   string
+	S3AccessKey        string
+	S3SecretKey        string
+	S3Bucket           string
+	S3UseSSL           bool
 }
 
 // Load parses configuration from the current environment.
@@ -32,6 +38,11 @@ func Load() (Config, error) {
 		KafkaTopicPrefix: getEnv("KAFKA_TOPIC_PREFIX", ""),
 		PricingMode:      strings.ToLower(getEnv("PRICING_MODE", "memory")),
 		MLPricingURL:     getEnv("ML_PRICING_URL", "http://localhost:8000/predict"),
+		S3Endpoint:       getEnv("S3_ENDPOINT", "http://localhost:9000"),
+		S3PublicEndpoint: getEnv("S3_PUBLIC_ENDPOINT", ""),
+		S3AccessKey:      getEnv("S3_ACCESS_KEY", "minioadmin"),
+		S3SecretKey:      getEnv("S3_SECRET_KEY", "minioadmin"),
+		S3Bucket:         getEnv("S3_BUCKET", "rentme-photos"),
 	}
 	brokers := getEnv("KAFKA_BROKERS", "")
 	if brokers != "" {
@@ -60,6 +71,14 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("invalid RETRY_BACKOFF component %q: %w", raw, err)
 		}
 		cfg.RetryBackoff = append(cfg.RetryBackoff, d)
+	}
+	useSSL, err := parseBoolEnv("S3_USE_SSL", false)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.S3UseSSL = useSSL
+	if cfg.S3PublicEndpoint == "" {
+		cfg.S3PublicEndpoint = cfg.S3Endpoint
 	}
 
 	if cfg.MongoURI == "" {
@@ -94,4 +113,19 @@ func parseDurationEnv(key string, def time.Duration) (time.Duration, error) {
 		return 0, fmt.Errorf("invalid %s duration: %w", key, err)
 	}
 	return d, nil
+}
+
+func parseBoolEnv(key string, def bool) (bool, error) {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return def, nil
+	}
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "t", "true", "yes", "y", "on":
+		return true, nil
+	case "0", "f", "false", "no", "n", "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid %s boolean: %q", key, raw)
+	}
 }

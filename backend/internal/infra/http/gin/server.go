@@ -34,6 +34,7 @@ type HostListingHTTP interface {
 	Publish(c *gin.Context)
 	Unpublish(c *gin.Context)
 	PriceSuggestion(c *gin.Context)
+	UploadPhoto(c *gin.Context)
 }
 
 type Handlers struct {
@@ -56,6 +57,7 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	router.Use(gin.Recovery())
 	router.Use(obsMW.RequestID())
 	router.Use(obsMW.LoggerMiddleware())
+	router.MaxMultipartMemory = 16 << 20 // 16 MiB guardrail for uploads
 	router.Use(cors.New(cors.Config{
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -103,6 +105,7 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 		hostGroup.POST("/:id/publish", h.HostListing.Publish)
 		hostGroup.POST("/:id/unpublish", h.HostListing.Unpublish)
 		hostGroup.POST("/:id/price-suggestion", h.HostListing.PriceSuggestion)
+		hostGroup.POST("/:id/photos", h.HostListing.UploadPhoto)
 	}
 	if h.Me != nil {
 		meGroup := api.Group("/me")

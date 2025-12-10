@@ -31,6 +31,7 @@ import (
 	mlpricing "rentme/internal/infra/pricing"
 	"rentme/internal/infra/security"
 	"rentme/internal/infra/storage/memory"
+	storages3 "rentme/internal/infra/storage/s3"
 )
 
 func main() {
@@ -45,8 +46,23 @@ func main() {
 		logger.Warn("using fallback configuration", "error", err)
 		cfg.Env = env
 		cfg.HTTPAddr = getenv("HTTP_ADDR", ":8080")
+		cfg.MongoURI = getenv("MONGO_URI", "mongodb://localhost:27017")
+		cfg.MongoDB = getenv("MONGO_DB", "rentals")
+		if brokers := strings.TrimSpace(getenv("KAFKA_BROKERS", "localhost:9092")); brokers != "" {
+			cfg.KafkaBrokers = strings.Split(brokers, ",")
+		}
+		cfg.KafkaTopicPrefix = getenv("KAFKA_TOPIC_PREFIX", "")
+		cfg.IdempotencyTTL = 168 * time.Hour
+		cfg.OutboxPollInterval = 500 * time.Millisecond
+		cfg.RetryBackoff = []time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
 		cfg.PricingMode = strings.ToLower(getenv("PRICING_MODE", "memory"))
 		cfg.MLPricingURL = getenv("ML_PRICING_URL", "http://localhost:8000/predict")
+		cfg.S3Endpoint = getenv("S3_ENDPOINT", "http://localhost:9000")
+		cfg.S3PublicEndpoint = getenv("S3_PUBLIC_ENDPOINT", cfg.S3Endpoint)
+		cfg.S3AccessKey = getenv("S3_ACCESS_KEY", "minioadmin")
+		cfg.S3SecretKey = getenv("S3_SECRET_KEY", "minioadmin")
+		cfg.S3Bucket = getenv("S3_BUCKET", "rentme-photos")
+		cfg.S3UseSSL = parseBoolWithDefault(getenv("S3_USE_SSL", "false"), false)
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = ":8080"
@@ -97,6 +113,7 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 	reviewsRepo := memory.NewReviewsRepository()
 	pricingCalc := resolvePricingCalculator(cfg, listingsRepo, logger)
 	pricingPort := memory.PricingPortAdapter{Calculator: pricingCalc}
+	uploader := resolveUploader(cfg, logger)
 	outboxStore := memory.NewOutbox()
 	idStore := memory.NewIdempotencyStore()
 	userRepo := memory.NewUserRepository()
@@ -135,6 +152,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 	commands.RegisterHandler(commandBus, listingapp.PublishHostListingCommand{}.Key(), publishListingHandler)
 	unpublishListingHandler := &listingapp.UnpublishHostListingHandler{Logger: logger}
 	commands.RegisterHandler(commandBus, listingapp.UnpublishHostListingCommand{}.Key(), unpublishListingHandler)
+	uploadPhotoHandler := &listingapp.UploadHostListingPhotoHandler{
+		Logger:   logger,
+		Uploader: uploader,
+	}
+	commands.RegisterHandler(commandBus, listingapp.UploadHostListingPhotoCommand{}.Key(), uploadPhotoHandler)
 
 	queryBus := queries.NewInMemoryBus()
 	availabilityHandler := &availabilityapp.GetCalendarHandler{
@@ -237,6 +259,17 @@ func resolvePricingCalculator(cfg config.Config, listingsRepo *memory.ListingRep
 	default:
 		return memory.NewPricingEngine()
 	}
+}
+
+func resolveUploader(cfg config.Config, logger *slog.Logger) storages3.Uploader {
+	uploader, err := storages3.NewClient(cfg.S3Endpoint, cfg.S3UseSSL, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3Bucket, cfg.S3PublicEndpoint, logger)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("s3 uploader disabled; falling back to noop", "error", err)
+		}
+		return storages3.NoopUploader{}
+	}
+	return uploader
 }
 
 func (a application) loadListingFixtures(ctx context.Context, path string, logger *slog.Logger) error {
@@ -389,6 +422,17 @@ func defaultListingFixturesPath() string {
 		}
 	}
 	return candidates[0]
+}
+
+func parseBoolWithDefault(raw string, def bool) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "t", "true", "yes", "y", "on":
+		return true
+	case "0", "f", "false", "no", "n", "off":
+		return false
+	default:
+		return def
+	}
 }
 
 func getenv(key, fallback string) string {

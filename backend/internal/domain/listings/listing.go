@@ -21,6 +21,7 @@ var (
 	ErrRenovationScore = errors.New("listings: renovation score must be between 0 and 10")
 	ErrBuildingAge     = errors.New("listings: building age must be non-negative")
 	ErrRentalTerm      = errors.New("listings: rental term must be short_term or long_term")
+	ErrPhotoURL        = errors.New("listings: photo URL is required")
 )
 
 type ListingID string
@@ -352,6 +353,28 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	l.Photos = append([]string(nil), params.Photos...)
 	l.UpdatedAt = now
 	l.Record(newListingUpdatedEvent(l.ID, now))
+	return nil
+}
+
+func (l *Listing) AddPhoto(url string, now time.Time) error {
+	cleaned := strings.TrimSpace(url)
+	if cleaned == "" {
+		return ErrPhotoURL
+	}
+	for _, existing := range l.Photos {
+		if existing == cleaned {
+			return nil
+		}
+	}
+	l.Photos = append(l.Photos, cleaned)
+	if l.ThumbnailURL == "" {
+		l.ThumbnailURL = cleaned
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	l.UpdatedAt = now.UTC()
+	l.Record(newListingUpdatedEvent(l.ID, l.UpdatedAt))
 	return nil
 }
 
