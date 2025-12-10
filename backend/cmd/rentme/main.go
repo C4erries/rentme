@@ -264,6 +264,10 @@ func (a application) loadListingFixtures(ctx context.Context, path string, logge
 			NightlyRateCents:     fx.NightlyRateCents,
 			Bedrooms:             fx.Bedrooms,
 			Bathrooms:            fx.Bathrooms,
+			Floor:                fx.Floor,
+			FloorsTotal:          fx.FloorsTotal,
+			RenovationScore:      fx.RenovationScore,
+			BuildingAgeYears:     fx.BuildingAgeYears,
 			AreaSquareMeters:     fx.AreaSquareMeters,
 			ThumbnailURL:         fx.ThumbnailURL,
 			Rating:               fx.Rating,
@@ -311,6 +315,10 @@ type listingFixture struct {
 	NightlyRateCents     int64          `json:"nightly_rate_cents"`
 	Bedrooms             int            `json:"bedrooms"`
 	Bathrooms            int            `json:"bathrooms"`
+	Floor                int            `json:"floor"`
+	FloorsTotal          int            `json:"floors_total"`
+	RenovationScore      int            `json:"renovation_score"`
+	BuildingAgeYears     int            `json:"building_age_years"`
 	AreaSquareMeters     float64        `json:"area_sq_m"`
 	ThumbnailURL         string         `json:"thumbnail_url"`
 	Rating               float64        `json:"rating"`

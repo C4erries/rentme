@@ -16,6 +16,10 @@ var (
 	ErrAddressRequired = errors.New("listings: address must be provided when activating")
 	ErrTitleRequired   = errors.New("listings: title is required")
 	ErrNightlyRate     = errors.New("listings: nightly rate must be non-negative")
+	ErrInvalidFloor    = errors.New("listings: floor must be >= 0")
+	ErrFloorsTotal     = errors.New("listings: floors total must be >= floor")
+	ErrRenovationScore = errors.New("listings: renovation score must be between 0 and 10")
+	ErrBuildingAge     = errors.New("listings: building age must be non-negative")
 )
 
 type ListingID string
@@ -61,6 +65,10 @@ type Listing struct {
 	NightlyRateCents     int64
 	Bedrooms             int
 	Bathrooms            int
+	Floor                int
+	FloorsTotal          int
+	RenovationScore      int
+	BuildingAgeYears     int
 	AreaSquareMeters     float64
 	ThumbnailURL         string
 	Rating               float64
@@ -96,6 +104,10 @@ type CreateListingParams struct {
 	NightlyRateCents     int64
 	Bedrooms             int
 	Bathrooms            int
+	Floor                int
+	FloorsTotal          int
+	RenovationScore      int
+	BuildingAgeYears     int
 	AreaSquareMeters     float64
 	ThumbnailURL         string
 	Rating               float64
@@ -123,6 +135,18 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 	if params.NightlyRateCents < 0 {
 		return nil, ErrNightlyRate
 	}
+	if params.Floor < 0 {
+		return nil, ErrInvalidFloor
+	}
+	if params.FloorsTotal < params.Floor {
+		return nil, ErrFloorsTotal
+	}
+	if params.RenovationScore < 0 || params.RenovationScore > 10 {
+		return nil, ErrRenovationScore
+	}
+	if params.BuildingAgeYears < 0 {
+		return nil, ErrBuildingAge
+	}
 	availableFrom := params.AvailableFrom
 	if availableFrom.IsZero() {
 		availableFrom = params.Now
@@ -147,6 +171,10 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 		NightlyRateCents:     params.NightlyRateCents,
 		Bedrooms:             params.Bedrooms,
 		Bathrooms:            params.Bathrooms,
+		Floor:                params.Floor,
+		FloorsTotal:          params.FloorsTotal,
+		RenovationScore:      params.RenovationScore,
+		BuildingAgeYears:     params.BuildingAgeYears,
 		AreaSquareMeters:     params.AreaSquareMeters,
 		ThumbnailURL:         strings.TrimSpace(params.ThumbnailURL),
 		Rating:               params.Rating,
@@ -219,6 +247,10 @@ type UpdateListingParams struct {
 	NightlyRateCents     int64
 	Bedrooms             int
 	Bathrooms            int
+	Floor                int
+	FloorsTotal          int
+	RenovationScore      int
+	BuildingAgeYears     int
 	AreaSquareMeters     float64
 	AvailableFrom        time.Time
 	Photos               []string
@@ -244,6 +276,18 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	if params.NightlyRateCents < 0 {
 		return ErrNightlyRate
 	}
+	if params.Floor < 0 {
+		return ErrInvalidFloor
+	}
+	if params.FloorsTotal < params.Floor {
+		return ErrFloorsTotal
+	}
+	if params.RenovationScore < 0 || params.RenovationScore > 10 {
+		return ErrRenovationScore
+	}
+	if params.BuildingAgeYears < 0 {
+		return ErrBuildingAge
+	}
 
 	l.Title = strings.TrimSpace(params.Title)
 	l.Description = strings.TrimSpace(params.Description)
@@ -260,6 +304,10 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	l.NightlyRateCents = params.NightlyRateCents
 	l.Bedrooms = params.Bedrooms
 	l.Bathrooms = params.Bathrooms
+	l.Floor = params.Floor
+	l.FloorsTotal = params.FloorsTotal
+	l.RenovationScore = params.RenovationScore
+	l.BuildingAgeYears = params.BuildingAgeYears
 	l.AreaSquareMeters = params.AreaSquareMeters
 	l.ThumbnailURL = strings.TrimSpace(params.ThumbnailURL)
 	if !params.AvailableFrom.IsZero() {

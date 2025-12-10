@@ -313,6 +313,10 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		NightlyRateCents:     rate,
 		Bedrooms:             req.Bedrooms,
 		Bathrooms:            req.Bathrooms,
+		Floor:                req.Floor,
+		FloorsTotal:          req.FloorsTotal,
+		RenovationScore:      req.RenovationScore,
+		BuildingAgeYears:     req.BuildingAgeYears,
 		AreaSquareMeters:     req.AreaSquareMeters,
 		AvailableFrom:        availableFrom,
 		Photos:               cleanStrings(req.Photos),
@@ -349,6 +353,10 @@ func isValidationError(err error) bool {
 		errors.Is(err, domainlistings.ErrGuestsLimit),
 		errors.Is(err, domainlistings.ErrNightsRange),
 		errors.Is(err, domainlistings.ErrNightlyRate),
+		errors.Is(err, domainlistings.ErrInvalidFloor),
+		errors.Is(err, domainlistings.ErrFloorsTotal),
+		errors.Is(err, domainlistings.ErrRenovationScore),
+		errors.Is(err, domainlistings.ErrBuildingAge),
 		errors.Is(err, domainlistings.ErrAddressRequired),
 		errors.Is(err, domainlistings.ErrInvalidState):
 		return true
@@ -374,6 +382,10 @@ type hostListingRequest struct {
 	NightlyRate          float64            `json:"nightly_rate"`
 	Bedrooms             int                `json:"bedrooms"`
 	Bathrooms            int                `json:"bathrooms"`
+	Floor                int                `json:"floor"`
+	FloorsTotal          int                `json:"floors_total"`
+	RenovationScore      int                `json:"renovation_score"`
+	BuildingAgeYears     int                `json:"building_age_years"`
 	AreaSquareMeters     float64            `json:"area_sq_m"`
 	AvailableFrom        string             `json:"available_from"`
 	Photos               []string           `json:"photos"`

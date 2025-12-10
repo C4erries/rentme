@@ -28,6 +28,10 @@ type HostListingSummary struct {
 	GuestsLimit      int       `json:"guests_limit"`
 	Bedrooms         int       `json:"bedrooms"`
 	Bathrooms        int       `json:"bathrooms"`
+	Floor            int       `json:"floor"`
+	FloorsTotal      int       `json:"floors_total"`
+	RenovationScore  int       `json:"renovation_score"`
+	BuildingAgeYears int       `json:"building_age_years"`
 	AreaSquareMeters float64   `json:"area_sq_m"`
 	AvailableFrom    time.Time `json:"available_from"`
 	ThumbnailURL     string    `json:"thumbnail_url"`
@@ -54,6 +58,10 @@ type HostListingDetail struct {
 	NightlyRateCents     int64          `json:"nightly_rate_cents"`
 	Bedrooms             int            `json:"bedrooms"`
 	Bathrooms            int            `json:"bathrooms"`
+	Floor                int            `json:"floor"`
+	FloorsTotal          int            `json:"floors_total"`
+	RenovationScore      int            `json:"renovation_score"`
+	BuildingAgeYears     int            `json:"building_age_years"`
 	AreaSquareMeters     float64        `json:"area_sq_m"`
 	ThumbnailURL         string         `json:"thumbnail_url"`
 	Photos               []string       `json:"photos"`
@@ -78,6 +86,10 @@ func MapHostListingSummary(listing *domainlistings.Listing) HostListingSummary {
 		GuestsLimit:      listing.GuestsLimit,
 		Bedrooms:         listing.Bedrooms,
 		Bathrooms:        listing.Bathrooms,
+		Floor:            listing.Floor,
+		FloorsTotal:      listing.FloorsTotal,
+		RenovationScore:  listing.RenovationScore,
+		BuildingAgeYears: listing.BuildingAgeYears,
 		AreaSquareMeters: listing.AreaSquareMeters,
 		AvailableFrom:    listing.AvailableFrom,
 		ThumbnailURL:     listing.ThumbnailURL,
@@ -117,6 +129,10 @@ func MapHostListingDetail(listing *domainlistings.Listing) HostListingDetail {
 		NightlyRateCents:     listing.NightlyRateCents,
 		Bedrooms:             listing.Bedrooms,
 		Bathrooms:            listing.Bathrooms,
+		Floor:                listing.Floor,
+		FloorsTotal:          listing.FloorsTotal,
+		RenovationScore:      listing.RenovationScore,
+		BuildingAgeYears:     listing.BuildingAgeYears,
 		AreaSquareMeters:     listing.AreaSquareMeters,
 		ThumbnailURL:         listing.ThumbnailURL,
 		Photos:               append([]string(nil), listing.Photos...),

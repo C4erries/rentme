@@ -39,6 +39,10 @@ type HostListingPayload struct {
 	NightlyRateCents     int64
 	Bedrooms             int
 	Bathrooms            int
+	Floor                int
+	FloorsTotal          int
+	RenovationScore      int
+	BuildingAgeYears     int
 	AreaSquareMeters     float64
 	AvailableFrom        time.Time
 	Photos               []string
@@ -83,6 +87,10 @@ func (h *CreateHostListingHandler) Handle(ctx context.Context, cmd CreateHostLis
 		NightlyRateCents:     cmd.Payload.NightlyRateCents,
 		Bedrooms:             cmd.Payload.Bedrooms,
 		Bathrooms:            cmd.Payload.Bathrooms,
+		Floor:                cmd.Payload.Floor,
+		FloorsTotal:          cmd.Payload.FloorsTotal,
+		RenovationScore:      cmd.Payload.RenovationScore,
+		BuildingAgeYears:     cmd.Payload.BuildingAgeYears,
 		AreaSquareMeters:     cmd.Payload.AreaSquareMeters,
 		ThumbnailURL:         cmd.Payload.ThumbnailURL,
 		Photos:               cmd.Payload.Photos,
@@ -154,6 +162,10 @@ func (h *UpdateHostListingHandler) Handle(ctx context.Context, cmd UpdateHostLis
 		NightlyRateCents:     cmd.Payload.NightlyRateCents,
 		Bedrooms:             cmd.Payload.Bedrooms,
 		Bathrooms:            cmd.Payload.Bathrooms,
+		Floor:                cmd.Payload.Floor,
+		FloorsTotal:          cmd.Payload.FloorsTotal,
+		RenovationScore:      cmd.Payload.RenovationScore,
+		BuildingAgeYears:     cmd.Payload.BuildingAgeYears,
 		AreaSquareMeters:     cmd.Payload.AreaSquareMeters,
 		AvailableFrom:        cmd.Payload.AvailableFrom,
 		Photos:               cmd.Payload.Photos,
