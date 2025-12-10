@@ -80,7 +80,7 @@ func (h *HostListingPriceSuggestionHandler) Handle(ctx context.Context, q HostLi
 		guests = listing.GuestsLimit
 	}
 
-	breakdown, err := h.Pricing.Quote(execCtx, listing.ID, dr, guests)
+	breakdown, err := h.Pricing.Quote(execCtx, listing, dr, guests)
 	if err != nil {
 		return zero, err
 	}

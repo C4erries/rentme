@@ -39,6 +39,7 @@ type ListingOverview struct {
 	GuestsLimit        int                `json:"guests_limit"`
 	MinNights          int                `json:"min_nights"`
 	MaxNights          int                `json:"max_nights"`
+	RentalTerm         string             `json:"rental_term"`
 	HouseRules         []string           `json:"house_rules"`
 	Host               ListingHost        `json:"host"`
 	State              string             `json:"state"`
@@ -74,6 +75,7 @@ func MapListingOverview(
 		GuestsLimit:        listing.GuestsLimit,
 		MinNights:          listing.MinNights,
 		MaxNights:          listing.MaxNights,
+		RentalTerm:         string(listing.RentalTermType),
 		HouseRules:         append([]string(nil), listing.HouseRules...),
 		Host:               host,
 		State:              string(listing.State),

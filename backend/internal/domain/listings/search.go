@@ -33,6 +33,7 @@ type SearchParams struct {
 	PriceMinCents int64
 	PriceMaxCents int64
 	PropertyTypes []string
+	RentalTerms   []RentalTermType
 	CheckIn       time.Time
 	CheckOut      time.Time
 	Sort          CatalogSort
@@ -51,6 +52,7 @@ func (p SearchParams) Normalized() SearchParams {
 	normalized.Tags = normalizeTokens(normalized.Tags)
 	normalized.Amenities = normalizeTokens(normalized.Amenities)
 	normalized.PropertyTypes = normalizeTokens(normalized.PropertyTypes)
+	normalized.RentalTerms = normalizeRentalTerms(normalized.RentalTerms)
 	normalized.CheckIn = normalizeDate(normalized.CheckIn)
 	normalized.CheckOut = normalizeDate(normalized.CheckOut)
 	if !normalized.CheckIn.IsZero() && !normalized.CheckOut.IsZero() && !normalized.CheckOut.After(normalized.CheckIn) {
@@ -99,6 +101,26 @@ func normalizeTokens(tokens []string) []string {
 		}
 		seen[token] = struct{}{}
 		out = append(out, token)
+	}
+	return out
+}
+
+func normalizeRentalTerms(values []RentalTermType) []RentalTermType {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[RentalTermType]struct{}, len(values))
+	out := make([]RentalTermType, 0, len(values))
+	for _, value := range values {
+		normalized := normalizeRentalTerm(value)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
 	}
 	return out
 }

@@ -20,6 +20,7 @@ var (
 	ErrFloorsTotal     = errors.New("listings: floors total must be >= floor")
 	ErrRenovationScore = errors.New("listings: renovation score must be between 0 and 10")
 	ErrBuildingAge     = errors.New("listings: building age must be non-negative")
+	ErrRentalTerm      = errors.New("listings: rental term must be short_term or long_term")
 )
 
 type ListingID string
@@ -31,6 +32,13 @@ const (
 	ListingDraft     ListingState = "DRAFT"
 	ListingActive    ListingState = "ACTIVE"
 	ListingSuspended ListingState = "SUSPENDED"
+)
+
+type RentalTermType string
+
+const (
+	RentalTermShort RentalTermType = "short_term"
+	RentalTermLong  RentalTermType = "long_term"
 )
 
 type Address struct {
@@ -74,6 +82,7 @@ type Listing struct {
 	RenovationScore      int
 	BuildingAgeYears     int
 	AreaSquareMeters     float64
+	RentalTermType       RentalTermType
 	ThumbnailURL         string
 	Rating               float64
 	Photos               []string
@@ -113,6 +122,7 @@ type CreateListingParams struct {
 	RenovationScore      int
 	BuildingAgeYears     int
 	AreaSquareMeters     float64
+	RentalTermType       RentalTermType
 	ThumbnailURL         string
 	Rating               float64
 	AvailableFrom        time.Time
@@ -154,6 +164,13 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 	if params.BuildingAgeYears < 0 {
 		return nil, ErrBuildingAge
 	}
+	rentalTerm := normalizeRentalTerm(params.RentalTermType)
+	if rentalTerm == "" {
+		if params.RentalTermType != "" {
+			return nil, ErrRentalTerm
+		}
+		rentalTerm = RentalTermLong
+	}
 	availableFrom := params.AvailableFrom
 	if availableFrom.IsZero() {
 		availableFrom = params.Now
@@ -183,6 +200,7 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 		RenovationScore:      params.RenovationScore,
 		BuildingAgeYears:     params.BuildingAgeYears,
 		AreaSquareMeters:     params.AreaSquareMeters,
+		RentalTermType:       rentalTerm,
 		ThumbnailURL:         strings.TrimSpace(params.ThumbnailURL),
 		Rating:               params.Rating,
 		Photos:               append([]string(nil), params.Photos...),
@@ -260,6 +278,7 @@ type UpdateListingParams struct {
 	BuildingAgeYears     int
 	AreaSquareMeters     float64
 	AvailableFrom        time.Time
+	RentalTermType       RentalTermType
 	Photos               []string
 	Now                  time.Time
 }
@@ -297,6 +316,13 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	}
 	if params.BuildingAgeYears < 0 {
 		return ErrBuildingAge
+	}
+	if params.RentalTermType != "" {
+		term := normalizeRentalTerm(params.RentalTermType)
+		if term == "" {
+			return ErrRentalTerm
+		}
+		l.RentalTermType = term
 	}
 
 	l.Title = strings.TrimSpace(params.Title)
@@ -343,4 +369,15 @@ func newListingSuspendedEvent(id ListingID, reason string, at time.Time) events.
 
 func newListingUpdatedEvent(id ListingID, at time.Time) events.DomainEvent {
 	return ListingUpdatedEvent{ListingID: id, At: at}
+}
+
+func normalizeRentalTerm(value RentalTermType) RentalTermType {
+	switch strings.TrimSpace(strings.ToLower(string(value))) {
+	case string(RentalTermShort):
+		return RentalTermShort
+	case string(RentalTermLong):
+		return RentalTermLong
+	default:
+		return ""
+	}
 }

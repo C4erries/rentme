@@ -38,6 +38,7 @@ type mlPredictRequest struct {
 	Renovation       int     `json:"renovation"`
 	BuildingAgeYears int     `json:"building_age_years"`
 	CurrentPrice     float64 `json:"current_price,omitempty"`
+	RentalTerm       string  `json:"rental_term,omitempty"`
 }
 
 type mlPredictResponse struct {
@@ -61,11 +62,25 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 		return zero, errors.New("pricing: listings repository missing")
 	}
 
-	listing, err := e.Listings.ByID(ctx, input.ListingID)
-	if err != nil {
-		return zero, err
+	listing := input.Listing
+	if listing == nil {
+		var err error
+		listing, err = e.Listings.ByID(ctx, input.ListingID)
+		if err != nil {
+			return zero, err
+		}
+	}
+	if listing == nil {
+		return zero, errors.New("pricing: listing missing")
 	}
 
+	rentalTerm := input.RentalTerm
+	if rentalTerm == "" && listing != nil {
+		rentalTerm = listing.RentalTermType
+	}
+	if rentalTerm == "" {
+		rentalTerm = domainlistings.RentalTermLong
+	}
 	reqPayload := mlPredictRequest{
 		ListingID:        string(listing.ID),
 		City:             listing.Address.City,
@@ -78,6 +93,7 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 		Renovation:       listing.RenovationScore,
 		BuildingAgeYears: listing.BuildingAgeYears,
 		CurrentPrice:     float64(listing.NightlyRateCents),
+		RentalTerm:       string(rentalTerm),
 	}
 
 	body, err := json.Marshal(reqPayload)

@@ -9,5 +9,5 @@ import (
 )
 
 type PricingPort interface {
-	Quote(ctx context.Context, listingID domainlistings.ListingID, dr domainrange.DateRange, guests int) (domainpricing.PriceBreakdown, error)
+	Quote(ctx context.Context, listing *domainlistings.Listing, dr domainrange.DateRange, guests int) (domainpricing.PriceBreakdown, error)
 }

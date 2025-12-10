@@ -30,6 +30,7 @@ type ListingCard struct {
 	Bedrooms         int                 `json:"bedrooms"`
 	Bathrooms        int                 `json:"bathrooms"`
 	AreaSquareMeters float64             `json:"area_sq_m"`
+	RentalTerm       string              `json:"rental_term"`
 	Tags             []string            `json:"tags"`
 	Amenities        []string            `json:"amenities"`
 	Highlights       []string            `json:"highlights"`
@@ -64,6 +65,7 @@ type CatalogFilters struct {
 	PropertyTypes []string `json:"property_types"`
 	CheckIn       string   `json:"check_in"`
 	CheckOut      string   `json:"check_out"`
+	RentalTerms   []string `json:"rental_terms"`
 }
 
 // CatalogMetadata describes pagination.
@@ -91,6 +93,10 @@ func MapCatalog(result domainlistings.SearchResult, params domainlistings.Search
 		items = append(items, card)
 	}
 	page, totalPages := resolvePaging(normalized.Limit, normalized.Offset, result.Total)
+	rentalTerms := make([]string, 0, len(normalized.RentalTerms))
+	for _, term := range normalized.RentalTerms {
+		rentalTerms = append(rentalTerms, string(term))
+	}
 	return ListingCatalog{
 		Items: items,
 		Filters: CatalogFilters{
@@ -106,6 +112,7 @@ func MapCatalog(result domainlistings.SearchResult, params domainlistings.Search
 			PropertyTypes: append([]string(nil), normalized.PropertyTypes...),
 			CheckIn:       formatDate(normalized.CheckIn),
 			CheckOut:      formatDate(normalized.CheckOut),
+			RentalTerms:   rentalTerms,
 		},
 		Meta: CatalogMetadata{
 			Total:      result.Total,
@@ -139,6 +146,7 @@ func MapListingCard(listing *domainlistings.Listing) ListingCard {
 		Bedrooms:         listing.Bedrooms,
 		Bathrooms:        listing.Bathrooms,
 		AreaSquareMeters: listing.AreaSquareMeters,
+		RentalTerm:       string(listing.RentalTermType),
 		Tags:             append([]string(nil), listing.Tags...),
 		Amenities:        append([]string(nil), listing.Amenities...),
 		Highlights:       append([]string(nil), listing.Highlights...),

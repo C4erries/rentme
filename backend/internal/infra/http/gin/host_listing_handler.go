@@ -300,6 +300,19 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		address.Region = address.Country
 	}
 
+	var rentalTerm domainlistings.RentalTermType
+	if strings.TrimSpace(req.RentalTerm) != "" {
+		value := strings.ToLower(strings.TrimSpace(req.RentalTerm))
+		switch value {
+		case string(domainlistings.RentalTermShort):
+			rentalTerm = domainlistings.RentalTermShort
+		case string(domainlistings.RentalTermLong):
+			rentalTerm = domainlistings.RentalTermLong
+		default:
+			return listingapp.HostListingPayload{}, fmt.Errorf("rental_term must be %q or %q", domainlistings.RentalTermShort, domainlistings.RentalTermLong)
+		}
+	}
+
 	payload := listingapp.HostListingPayload{
 		Title:                req.Title,
 		Description:          req.Description,
@@ -322,6 +335,7 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		RenovationScore:      req.RenovationScore,
 		BuildingAgeYears:     req.BuildingAgeYears,
 		AreaSquareMeters:     req.AreaSquareMeters,
+		RentalTermType:       rentalTerm,
 		AvailableFrom:        availableFrom,
 		Photos:               cleanStrings(req.Photos),
 	}
@@ -361,6 +375,7 @@ func isValidationError(err error) bool {
 		errors.Is(err, domainlistings.ErrFloorsTotal),
 		errors.Is(err, domainlistings.ErrRenovationScore),
 		errors.Is(err, domainlistings.ErrBuildingAge),
+		errors.Is(err, domainlistings.ErrRentalTerm),
 		errors.Is(err, domainlistings.ErrAddressRequired),
 		errors.Is(err, domainlistings.ErrInvalidState):
 		return true
@@ -393,6 +408,7 @@ type hostListingRequest struct {
 	AreaSquareMeters     float64            `json:"area_sq_m"`
 	AvailableFrom        string             `json:"available_from"`
 	Photos               []string           `json:"photos"`
+	RentalTerm           string             `json:"rental_term"`
 }
 
 type hostListingAddress struct {

@@ -300,6 +300,7 @@ func (a application) loadListingFixtures(ctx context.Context, path string, logge
 			RenovationScore:      fx.RenovationScore,
 			BuildingAgeYears:     fx.BuildingAgeYears,
 			AreaSquareMeters:     fx.AreaSquareMeters,
+			RentalTermType:       listings.RentalTermType(strings.TrimSpace(strings.ToLower(fx.RentalTerm))),
 			ThumbnailURL:         fx.ThumbnailURL,
 			Rating:               fx.Rating,
 			AvailableFrom:        parseFixtureTime(fx.AvailableFrom, now),
@@ -351,6 +352,7 @@ type listingFixture struct {
 	RenovationScore      int            `json:"renovation_score"`
 	BuildingAgeYears     int            `json:"building_age_years"`
 	AreaSquareMeters     float64        `json:"area_sq_m"`
+	RentalTerm           string         `json:"rental_term"`
 	ThumbnailURL         string         `json:"thumbnail_url"`
 	Rating               float64        `json:"rating"`
 	AvailableFrom        string         `json:"available_from"`

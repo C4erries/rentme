@@ -58,15 +58,21 @@ type PricingPortAdapter struct {
 }
 
 var ErrPricingCalculatorMissing = errors.New("pricing: calculator missing")
+var ErrListingRequired = errors.New("pricing: listing required")
 
-func (p PricingPortAdapter) Quote(ctx context.Context, listingID domainlistings.ListingID, dr domainrange.DateRange, guests int) (domainpricing.PriceBreakdown, error) {
+func (p PricingPortAdapter) Quote(ctx context.Context, listing *domainlistings.Listing, dr domainrange.DateRange, guests int) (domainpricing.PriceBreakdown, error) {
 	if p.Calculator == nil {
 		return domainpricing.PriceBreakdown{}, ErrPricingCalculatorMissing
 	}
+	if listing == nil {
+		return domainpricing.PriceBreakdown{}, ErrListingRequired
+	}
 	return p.Calculator.Quote(ctx, domainpricing.QuoteInput{
-		ListingID: listingID,
-		Range:     dr,
-		Guests:    guests,
+		ListingID:  listing.ID,
+		Listing:    listing,
+		RentalTerm: listing.RentalTermType,
+		Range:      dr,
+		Guests:     guests,
 	})
 }
 

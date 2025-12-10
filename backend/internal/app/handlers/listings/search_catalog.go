@@ -2,6 +2,7 @@ package listings
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"rentme/internal/app/dto"
@@ -25,6 +26,7 @@ type SearchCatalogQuery struct {
 	PriceMinCents int64
 	PriceMaxCents int64
 	PropertyTypes []string
+	RentalTerms   []string
 	Sort          string
 	Limit         int
 	Offset        int
@@ -65,6 +67,7 @@ func (h *SearchCatalogHandler) Handle(ctx context.Context, q SearchCatalogQuery)
 		PriceMinCents: q.PriceMinCents,
 		PriceMaxCents: q.PriceMaxCents,
 		PropertyTypes: append([]string(nil), q.PropertyTypes...),
+		RentalTerms:   parseRentalTerms(q.RentalTerms),
 		Sort:          domainlistings.CatalogSort(q.Sort),
 		Limit:         q.Limit,
 		Offset:        q.Offset,
@@ -111,3 +114,26 @@ func (h *SearchCatalogHandler) Handle(ctx context.Context, q SearchCatalogQuery)
 }
 
 var _ queries.Handler[SearchCatalogQuery, dto.ListingCatalog] = (*SearchCatalogHandler)(nil)
+
+func parseRentalTerms(tokens []string) []domainlistings.RentalTermType {
+	if len(tokens) == 0 {
+		return nil
+	}
+	seen := make(map[domainlistings.RentalTermType]struct{}, len(tokens))
+	out := make([]domainlistings.RentalTermType, 0, len(tokens))
+	for _, token := range tokens {
+		normalized := domainlistings.RentalTermType(strings.ToLower(strings.TrimSpace(token)))
+		switch normalized {
+		case domainlistings.RentalTermShort, domainlistings.RentalTermLong:
+			if _, ok := seen[normalized]; ok {
+				continue
+			}
+			seen[normalized] = struct{}{}
+			out = append(out, normalized)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}

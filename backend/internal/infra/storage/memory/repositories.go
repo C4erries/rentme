@@ -112,6 +112,9 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 		if len(opts.PropertyTypes) > 0 && !propertyTypeMatches(listing.PropertyType, opts.PropertyTypes) {
 			continue
 		}
+		if len(opts.RentalTerms) > 0 && !rentalTermMatches(listing.RentalTermType, opts.RentalTerms) {
+			continue
+		}
 		matches = append(matches, listing)
 	}
 
@@ -212,6 +215,18 @@ func propertyTypeMatches(value string, allowed []string) bool {
 	}
 	for _, option := range allowed {
 		if current == option {
+			return true
+		}
+	}
+	return false
+}
+
+func rentalTermMatches(value domainlistings.RentalTermType, allowed []domainlistings.RentalTermType) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, option := range allowed {
+		if value == option {
 			return true
 		}
 	}

@@ -80,7 +80,7 @@ func (h *RequestBookingHandler) Handle(ctx context.Context, cmd RequestBookingCo
 		return nil, err
 	}
 
-	price, err := h.Pricing.Quote(ctx, listing.ID, dr, cmd.Guests)
+	price, err := h.Pricing.Quote(ctx, listing, dr, cmd.Guests)
 	if err != nil {
 		return nil, err
 	}

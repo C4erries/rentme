@@ -92,6 +92,8 @@ func (p PriceBreakdown) Copy() PriceBreakdown {
 
 type QuoteInput struct {
 	ListingID listings.ListingID
+	Listing   *listings.Listing
+	RentalTerm listings.RentalTermType
 	Range     daterange.DateRange
 	Guests    int
 }

@@ -60,6 +60,7 @@ func (h ListingHandler) Catalog(c *gin.Context) {
 		priceMax = parseMajorCurrencyToCents(c.Query("price_max"))
 	}
 	propertyTypes := mergeSlices(splitCSV(c.Query("type")), splitCSV(c.Query("types")))
+	rentalTerms := mergeSlices(splitCSV(c.Query("rental_term")), splitCSV(c.Query("rental_terms")))
 
 	query := listingapp.SearchCatalogQuery{
 		City:          c.Query("city"),
@@ -72,6 +73,7 @@ func (h ListingHandler) Catalog(c *gin.Context) {
 		PriceMinCents: priceMin,
 		PriceMaxCents: priceMax,
 		PropertyTypes: propertyTypes,
+		RentalTerms:   rentalTerms,
 		Limit:         limit,
 		Offset:        offset,
 		Sort:          c.Query("sort"),
