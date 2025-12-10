@@ -1,113 +1,160 @@
-## ML‑сервис оценки стоимости квартиры в Rentme
+## ML‑сервис ценообразования для Rentme
 
-Этот каталог описывает ML‑подсистему, которая прогнозирует **рекомендованную ночную цену** для объявлений (`Listing`) в Rentme.
+Этот каталог содержит учебный ML‑сервис, который по признакам квартиры возвращает оценочную стоимость аренды.  
+Сервис работает поверх подготовленных CSV‑датасетов и общается с Go‑backend по HTTP.
 
-Задача: синхронизировать схему учебных CSV‑датасетов с доменной моделью и будущим HTTP‑сервисом, который будет использоваться контекстом `pricing`.
-
-Подробная постановка задачи и связь с доменом описаны в `mlrent/problem.md` и `domain_model.md`. Ниже — краткое резюме по данным и интеграции.
+Основная цель: построить понятную связку «доменная модель Listing ↔ признаки ML ↔ HTTP‑адаптер», причём **отдельно для посуточной и долгосрочной аренды**.
 
 ---
 
-### 1. Схема данных для обучения
+### 1. Текущая схема данных (CSV)
 
-Оба CSV‑файла (`clean_train.csv`, `clean_test.csv`) имеют структуру:
+Используются два файла в `mlrent/`:
+
+- `clean_train.csv` — обучающая выборка;
+- `clean_test.csv` — тестовая выборка.
+
+Схема строк:
 
 ```text
 id,city,price,minutes,way,rooms,total_area,storey,storeys,renovation,building_age_years
 ```
 
-Интерпретация полей:
-- `id` — индекс строки;
-- `city` — город (учебно: `Moscow`);
-- `price` — цена аренды (таргет, далее приводится к ночной ставке);
-- `minutes` — время до центра города в минутах;
-- `way` — тип пути до центра (`walk` — пешком, `car` — на машине/транспорте);
-- `rooms` — количество комнат (будет использоваться как `Bedrooms`);
-- `total_area` — общая площадь квартиры, м² (`AreaSquareMeters`);
-- `storey` — этаж квартиры;
-- `storeys` — этажность дома;
-- `renovation` — уровень ремонта от 0 до 10;
-- `building_age_years` — возраст дома в годах.
+Поля:
+- `id` — технический идентификатор строки;
+- `city` — город (`Listing.Address.City`);
+- `price` — целевая стоимость (в обучении; в интеграции обычно воспринимается как `NightlyRateCents` или производная величина);
+- `minutes` — примерное время до центра города, в минутах;
+- `way` — способ добирания до центра (`walk` / `car`);
+- `rooms` — количество комнат (`Listing.Bedrooms`);
+- `total_area` — общая площадь (`Listing.AreaSquareMeters`);
+- `storey` — этаж (`Listing.Floor`);
+- `storeys` — этажность (`Listing.FloorsTotal`);
+- `renovation` — качество ремонта 0–10 (`Listing.RenovationScore`);
+- `building_age_years` — возраст дома в годах (`Listing.BuildingAgeYears`).
 
-Все поведенческие и производные признаки убраны из CSV и при необходимости должны вычисляться в ML‑коде на основе этих базовых полей.
+Признаки `minutes` и `way` сейчас могут подставляться заглушками на стороне backend‑адаптера (`MLPricingEngine`), но в идеале должны вычисляться по геоданным (расстояние до центра → время пешком/на машине).
 
 ---
 
 ### 2. Связь с доменной моделью Rentme
 
-Ключевые поля доменной модели `Listing` (см. `domain_model.md` и `backend/internal/domain/listings/listing.go`):
+Целевая сущность на стороне backend — `Listing` (см. `domain_model.md` и `backend/internal/domain/listings/listing.go`).
 
-- Локация:
-  - `Address.City`, `Address.Country`, `Address.Lat`, `Address.Lon`;
-- Характеристики квартиры:
-  - `Bedrooms`, `Bathrooms`;
-  - `AreaSquareMeters`;
-  - (план) `Floor`, `FloorsTotal`;
-  - (план) `RenovationScore`, `BuildingAgeYears` или `YearBuilt`;
-- Цена:
-  - `NightlyRateCents`, `Rating`.
+Маппинг:
+- `city` ← `Listing.Address.City`
+- `rooms` ← `Listing.Bedrooms`
+- `total_area` ← `Listing.AreaSquareMeters`
+- `storey` ← `Listing.Floor`
+- `storeys` ← `Listing.FloorsTotal`
+- `renovation` ← `Listing.RenovationScore`
+- `building_age_years` ← `Listing.BuildingAgeYears`
+- `price` ↔ желаемая/наблюдаемая стоимость (используется как таргет при обучении)
+- `minutes`, `way` ← производные признаки (время и способ добирания).
 
-Соответствие CSV ↔ домен:
-- `city` → `Address.City`;
-- `rooms` → `Bedrooms`;
-- `total_area` → `AreaSquareMeters`;
-- `storey` → `Floor` (планируемое поле);
-- `storeys` → `FloorsTotal` (планируемое поле);
-- `renovation` → `RenovationScore` (планируемое поле);
-- `building_age_years` → `BuildingAgeYears` или производная от `YearBuilt`;
-- `price` → целевая цена, согласованная по масштабу с `NightlyRateCents`;
-- `minutes`, `way` → признаки транспортной доступности (могут остаться чисто ML‑фичами).
+Отдельно в `Listing` хранится `RentalTermType` (`short_term`/`long_term`).  
+ML‑сервис напрямую о структуре `Listing` не знает, но backend может передавать тип аренды в запросе и выбирать соответствующую модель.
 
 ---
 
-### 3. Черновой HTTP‑контракт ML‑сервиса
+### 3. HTTP‑API ML‑сервиса
 
-ML‑сервис будет небольшим Python‑приложением, принимающим снапшот квартиры и отдающим рекомендованную ночную цену.
+Сервис написан на FastAPI (`mlrent/main.py`).
 
-Эскиз эндпоинта:
+Основные endpoint’ы:
+- `GET /health` — проверка живости.
+- `POST /predict` — выдаёт рекомендованную цену.
 
-- `POST /predict`
-  - Вход:
-    ```json
-    {
-      "listing_id": "string",
-      "city": "Moscow",
-      "price": 95000,
-      "minutes": 20,
-      "way": "walk",
-      "rooms": 3,
-      "total_area": 120.0,
-      "storey": 7,
-      "storeys": 25,
-      "renovation": 8,
-      "building_age_years": 10
-    }
-    ```
-  - Выход:
-    ```json
-    {
-      "listing_id": "string",
-      "recommended_nightly_rate_cents": 8500,
-      "confidence": 0.78
-    }
-    ```
+Пример запроса:
 
-Список полей входа совпадает с CSV‑схемой, чтобы обучающие данные и онлайн‑фичи были согласованы.
+```json
+{
+  "listing_id": "uuid",
+  "rental_term": "long_term",
+  "city": "Moscow",
+  "minutes": 20,
+  "way": "car",
+  "rooms": 2,
+  "total_area": 55.0,
+  "storey": 7,
+  "storeys": 16,
+  "renovation": 7,
+  "building_age_years": 15,
+  "current_price": 90000.0
+}
+```
+
+Пример ответа:
+
+```json
+{
+  "listing_id": "uuid",
+  "recommended_price": 95000.0,
+  "current_price": 90000.0,
+  "diff": 5000.0
+}
+```
+
+Backend‑адаптер (`MLPricingEngine`) преобразует `recommended_price` в `PriceBreakdown.Nightly` и считает итоговую стоимость брони.
 
 ---
 
-### 4. Интеграция с бэкендом Rentme
+### 4. Разделение моделей для short_term и long_term
 
-ML‑сервис встраивается через контекст `pricing`:
+Бизнес‑требования:
+- есть два сегмента:
+  - посуточная аренда (`short_term`);
+  - долгосрочная аренда (`long_term`);
+- **для каждого сегмента нужна своя ML‑модель и свой датасет**;
+- UI может показывать рекомендации как для посуточной, так и для долгосрочной аренды (в зависимости от типа объявления).
 
-- доменный интерфейс `pricing.Calculator` и структура `PriceBreakdown`;
-- порт `PricingPort` в `internal/app/policies`;
-- хендлер `HostListingPriceSuggestionHandler`, отдающий хосту рекомендованную цену.
+Целевая схема:
+- два набора данных:
+  - `clean_train_short.csv` / `clean_test_short.csv`;
+  - `clean_train_long.csv` / `clean_test_long.csv`;
+- две модели в `mlrent/ml.py`:
+  - `short_term_model`
+  - `long_term_model`
+- HTTP‑интерфейс:
+  - один endpoint `/predict` с полем `rental_term` (`"short_term" | "long_term"`),  
+    **или** два endpoint’а (`/predict/short`, `/predict/long`).
 
-План интеграции (подробнее в `mlrent/plan.md`):
-- реализовать адаптер `MLPricingEngine` в `internal/infra`, который:
-  - по `QuoteInput{ ListingID, Range, Guests }` читает `Listing` из БД;
-  - формирует запрос к `POST /predict` по CSV‑схеме;
-  - использует предсказанную цену как `Nightly` в `PriceBreakdown`;
-- зарегистрировать адаптер как реализацию `pricing.Calculator`/`PricingPort` рядом с существующим `memory.PricingEngine` (для dev‑режима).
+Интеграция:
+- backend всегда передаёт `rental_term` согласно `Listing.RentalTermType`;
+- `MLPricingEngine` выбирает модель/endpoint по этому полю;
+- результат для обоих типов используется одинаково: как рекомендованная цена, которую хост может принять или игнорировать.
+
+---
+
+### 5. Встраивание в backend (`MLPricingEngine`)
+
+На стороне Go:
+- интерфейс `pricing.Calculator` определяет вход (`QuoteInput`) и выход (`PriceBreakdown`);
+- реализация `MLPricingEngine`:
+  - получает `Listing` по `ListingID`;
+  - подготавливает JSON‑payload по схеме выше;
+  - указывает `rental_term` (`short_term`/`long_term`);
+  - отправляет запрос в ML‑сервис;
+  - логирует ошибки и таймауты;
+  - мапит `recommended_price` → `PriceBreakdown.Nightly`.
+
+Особенности:
+- при недоступности ML‑сервиса должен быть fallback (например, `memory`‑калькулятор);
+- рекомендованная цена — **подсказка**, а не обязательное значение: хост всегда может задать свою цену;
+- для обоих типов аренды (short/long) сценарий работает одинаково, различается только модель и, возможно, шкала/размерность цены.
+
+---
+
+### 6. Docker‑образ и интеграция в compose
+
+Файл `mlrent/Dockerfile` описывает контейнер ML‑сервиса.  
+Цель — запускать его вместе с остальными сервисами через корневой `docker-compose.yml`:
+
+- сервис `rentme-ml` слушает, например, на `:8000`;
+- backend получает URL через `ML_PRICING_URL`;
+- при `PRICING_MODE=ml` backend использует именно ML‑калькулятор.
+
+Точный статус интеграции и следующие шаги описаны в:
+- `mlrent/plan.md` — план развития ML‑части;
+- `plan.md` в корне — общий план проекта.
 
