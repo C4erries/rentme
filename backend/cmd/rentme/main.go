@@ -54,7 +54,7 @@ func main() {
 		cfg.HTTPAddr = getenv("HTTP_ADDR", ":8080")
 		cfg.MongoURI = getenv("MONGO_URI", "mongodb://localhost:27017")
 		cfg.MongoDB = getenv("MONGO_DB", "rentals")
-		if brokers := strings.TrimSpace(getenv("KAFKA_BROKERS", "localhost:9092")); brokers != "" {
+		if brokers := strings.TrimSpace(getenv("KAFKA_BROKERS", "")); brokers != "" {
 			cfg.KafkaBrokers = strings.Split(brokers, ",")
 		}
 		cfg.KafkaTopicPrefix = getenv("KAFKA_TOPIC_PREFIX", "")

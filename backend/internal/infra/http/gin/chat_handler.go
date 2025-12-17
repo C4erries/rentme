@@ -60,7 +60,7 @@ func (h ChatHandler) ListMyConversations(c *gin.Context) {
 
 	conversations, next, err := h.Messaging.ListConversations(c.Request.Context(), targetUser, limit, cursor, includeAll)
 	if err != nil {
-		h.respondMessagingError(c, err, "list conversations")
+		h.respondMessagingError(c, err, "list conversations", "user_id", targetUser)
 		return
 	}
 	collection := dto.ConversationList{
@@ -100,7 +100,7 @@ func (h ChatHandler) ListMessages(c *gin.Context) {
 
 	conversation, err := h.Messaging.GetConversation(c.Request.Context(), conversationID)
 	if err != nil {
-		h.respondMessagingError(c, err, "load conversation")
+		h.respondMessagingError(c, err, "load conversation", "conversation_id", conversationID, "user_id", principal.ID)
 		return
 	}
 	if !principal.HasRole("admin") && !contains(conversation.Participants, principal.ID) {
@@ -112,7 +112,7 @@ func (h ChatHandler) ListMessages(c *gin.Context) {
 
 	messages, next, err := h.Messaging.ListMessages(c.Request.Context(), conversationID, limit, cursor)
 	if err != nil {
-		h.respondMessagingError(c, err, "list messages")
+		h.respondMessagingError(c, err, "list messages", "conversation_id", conversationID, "user_id", principal.ID)
 		return
 	}
 	collection := dto.ChatMessageList{
@@ -161,7 +161,7 @@ func (h ChatHandler) SendMessage(c *gin.Context) {
 
 	conversation, err := h.Messaging.GetConversation(c.Request.Context(), conversationID)
 	if err != nil {
-		h.respondMessagingError(c, err, "load conversation")
+		h.respondMessagingError(c, err, "load conversation", "conversation_id", conversationID, "user_id", principal.ID)
 		return
 	}
 	if !principal.HasRole("admin") && !contains(conversation.Participants, principal.ID) {
@@ -170,7 +170,7 @@ func (h ChatHandler) SendMessage(c *gin.Context) {
 	}
 	message, err := h.Messaging.SendMessage(c.Request.Context(), conversationID, principal.ID, req.Text)
 	if err != nil {
-		h.respondMessagingError(c, err, "send message")
+		h.respondMessagingError(c, err, "send message", "conversation_id", conversationID, "user_id", principal.ID)
 		return
 	}
 	c.JSON(http.StatusCreated, dto.ChatMessage{
@@ -221,7 +221,17 @@ func (h ChatHandler) CreateListingConversation(c *gin.Context) {
 	}
 	conversation, err := h.Messaging.GetOrCreateConversationForListing(c.Request.Context(), listingID, principal.ID, hostID)
 	if err != nil {
-		h.respondMessagingError(c, err, "create conversation")
+		h.respondMessagingError(
+			c,
+			err,
+			"create conversation",
+			"listing_id",
+			listingID,
+			"user_id",
+			principal.ID,
+			"host_id",
+			hostID,
+		)
 		return
 	}
 	response := dto.Conversation{
@@ -269,7 +279,7 @@ func (h ChatHandler) CreateDirectConversation(c *gin.Context) {
 	}
 	conversation, err := h.Messaging.GetOrCreateConversationForListing(c.Request.Context(), "", principal.ID, req.UserID)
 	if err != nil {
-		h.respondMessagingError(c, err, "create direct conversation")
+		h.respondMessagingError(c, err, "create direct conversation", "user_id", principal.ID, "peer_id", req.UserID)
 		return
 	}
 	response := dto.Conversation{
@@ -310,7 +320,7 @@ func (h ChatHandler) MarkRead(c *gin.Context) {
 
 	conversation, err := h.Messaging.GetConversation(c.Request.Context(), conversationID)
 	if err != nil {
-		h.respondMessagingError(c, err, "load conversation")
+		h.respondMessagingError(c, err, "load conversation", "conversation_id", conversationID, "user_id", principal.ID)
 		return
 	}
 	if !principal.HasRole("admin") && !contains(conversation.Participants, principal.ID) {
@@ -324,15 +334,15 @@ func (h ChatHandler) MarkRead(c *gin.Context) {
 	}
 	readAt, err := h.Messaging.MarkConversationRead(c.Request.Context(), conversationID, principal.ID, lastRead)
 	if err != nil {
-		h.respondMessagingError(c, err, "mark read")
+		h.respondMessagingError(c, err, "mark read", "conversation_id", conversationID, "user_id", principal.ID)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"read_at": readAt})
 }
 
-func (h ChatHandler) respondMessagingError(c *gin.Context, err error, action string) {
+func (h ChatHandler) respondMessagingError(c *gin.Context, err error, action string, attrs ...any) {
 	if h.Logger != nil {
-		h.Logger.Error("messaging call failed", "action", action, "error", err)
+		h.Logger.Error("messaging call failed", append([]any{"action", action, "error", err}, attrs...)...)
 	}
 	if st, ok := status.FromError(err); ok {
 		switch st.Code() {
@@ -344,6 +354,9 @@ func (h ChatHandler) respondMessagingError(c *gin.Context, err error, action str
 			return
 		case codes.Unauthenticated, codes.PermissionDenied:
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			return
+		case codes.Unavailable, codes.DeadlineExceeded:
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "messaging unavailable"})
 			return
 		}
 	}

@@ -1,6 +1,8 @@
 package ginserver
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -70,7 +72,11 @@ func (h AdminHandler) MLMetrics(c *gin.Context) {
 		if h.Logger != nil {
 			h.Logger.Error("ml metrics fetch failed", "error", err)
 		}
-		c.JSON(http.StatusBadGateway, gin.H{"error": "ml metrics unavailable"})
+		status := http.StatusBadGateway
+		if errors.Is(err, context.DeadlineExceeded) {
+			status = http.StatusGatewayTimeout
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, result)

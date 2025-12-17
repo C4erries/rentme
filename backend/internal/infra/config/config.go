@@ -100,9 +100,6 @@ func Load() (Config, error) {
 	if cfg.MongoURI == "" {
 		return Config{}, fmt.Errorf("MONGO_URI is required")
 	}
-	if len(cfg.KafkaBrokers) == 0 {
-		return Config{}, fmt.Errorf("KAFKA_BROKERS is required")
-	}
 	if cfg.PricingMode == "" {
 		cfg.PricingMode = "memory"
 	}

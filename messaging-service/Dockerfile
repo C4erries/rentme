@@ -1,12 +1,11 @@
-FROM golang:1.22 AS builder
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-ENV CGO_ENABLED=0 \
-    GOTOOLCHAIN=auto
+ENV CGO_ENABLED=0
 
 RUN go build -o /app/bin/messaging-service ./cmd/server
 
