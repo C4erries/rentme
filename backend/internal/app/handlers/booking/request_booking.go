@@ -74,6 +74,10 @@ func (h *RequestBookingHandler) Handle(ctx context.Context, cmd RequestBookingCo
 	if err != nil {
 		return nil, err
 	}
+	now := time.Now().UTC()
+	if err := domainbooking.ValidateDateRange(dr, now); err != nil {
+		return nil, err
+	}
 
 	listing, err := unit.Listings().ByID(ctx, domainlistings.ListingID(cmd.ListingID))
 	if err != nil {
@@ -95,7 +99,7 @@ func (h *RequestBookingHandler) Handle(ctx context.Context, cmd RequestBookingCo
 		Policy: domainbooking.CancellationPolicySnapshot{
 			PolicyID: listing.CancellationPolicyID,
 		},
-		CreatedAt: time.Now(),
+		CreatedAt: now,
 	})
 	if err != nil {
 		return nil, err

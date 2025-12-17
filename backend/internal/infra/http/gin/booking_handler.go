@@ -17,13 +17,20 @@ type BookingHandler struct {
 
 type createBookingRequest struct {
 	ListingID string    `json:"listing_id"`
-	GuestID   string    `json:"guest_id"`
 	CheckIn   time.Time `json:"check_in"`
 	CheckOut  time.Time `json:"check_out"`
 	Guests    int       `json:"guests"`
 }
 
 func (h BookingHandler) Create(c *gin.Context) {
+	user, ok := requireRole(c, "")
+	if !ok {
+		return
+	}
+	if h.Commands == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "commands unavailable"})
+		return
+	}
 	var req createBookingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -32,7 +39,7 @@ func (h BookingHandler) Create(c *gin.Context) {
 	cmd := BookingApp.RequestBookingCommand{
 		CommandID:       generateCommandID(),
 		ListingID:       req.ListingID,
-		GuestID:         req.GuestID,
+		GuestID:         user.ID,
 		CheckIn:         req.CheckIn,
 		CheckOut:        req.CheckOut,
 		Guests:          req.Guests,
