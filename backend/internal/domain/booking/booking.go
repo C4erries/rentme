@@ -16,6 +16,7 @@ var (
 	ErrInvalidGuests       = errors.New("booking: guests count must be positive")
 	ErrInvalidState        = errors.New("booking: invalid state transition")
 	ErrPaymentHoldRequired = errors.New("booking: payment hold required before confirmation")
+	ErrBookingNotFound     = errors.New("booking: not found")
 )
 
 type BookingID string

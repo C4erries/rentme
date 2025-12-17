@@ -43,6 +43,7 @@ type ListingOverview struct {
 	HouseRules         []string           `json:"house_rules"`
 	Host               ListingHost        `json:"host"`
 	State              string             `json:"state"`
+	Rating             float64            `json:"rating"`
 	Calendar           Calendar           `json:"calendar"`
 	AvailabilityWindow AvailabilityWindow `json:"availability_window"`
 }
@@ -79,6 +80,7 @@ func MapListingOverview(
 		HouseRules:         append([]string(nil), listing.HouseRules...),
 		Host:               host,
 		State:              string(listing.State),
+		Rating:             listing.Rating,
 		AvailabilityWindow: AvailabilityWindow{From: windowFrom, To: windowTo},
 	}
 	overview.Calendar = MapCalendarWithin(calendar, windowFrom, windowTo)

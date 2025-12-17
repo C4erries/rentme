@@ -256,6 +256,15 @@ func (l *Listing) UpdateDetails(title, description string, rules, amenities []st
 	return nil
 }
 
+// UpdateRating stores the aggregated rating for the listing.
+func (l *Listing) UpdateRating(rating float64, now time.Time) {
+	if rating < 0 {
+		rating = 0
+	}
+	l.Rating = rating
+	l.UpdatedAt = now.UTC()
+}
+
 type UpdateListingParams struct {
 	Title                string
 	Description          string

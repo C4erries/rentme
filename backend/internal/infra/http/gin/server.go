@@ -26,6 +26,11 @@ type ListingHTTP interface {
 	Overview(c *gin.Context)
 }
 
+type ReviewsHTTP interface {
+	Submit(c *gin.Context)
+	ListByListing(c *gin.Context)
+}
+
 type HostListingHTTP interface {
 	List(c *gin.Context)
 	Create(c *gin.Context)
@@ -43,6 +48,7 @@ type Handlers struct {
 	Listing        ListingHTTP
 	HostListing    HostListingHTTP
 	Auth           AuthHTTP
+	Reviews        ReviewsHTTP
 	Me             MeHTTP
 	AuthMiddleware gin.HandlerFunc
 }
@@ -88,6 +94,10 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	if h.Booking != nil {
 		api.POST("/bookings", h.Booking.Create)
 		api.POST("/bookings/:id/accept", h.Booking.Accept)
+	}
+	if h.Reviews != nil {
+		api.POST("/bookings/:id/review", h.Reviews.Submit)
+		api.GET("/listings/:id/reviews", h.Reviews.ListByListing)
 	}
 	if h.Availability != nil {
 		api.GET("/listings/:id/calendar", h.Availability.Calendar)

@@ -5,12 +5,14 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"time"
 
 	"rentme/internal/app/dto"
 	handlersupport "rentme/internal/app/handlers/support"
 	"rentme/internal/app/queries"
 	"rentme/internal/app/uow"
 	domainlistings "rentme/internal/domain/listings"
+	domainreviews "rentme/internal/domain/reviews"
 )
 
 const listGuestBookingsKey = "me.bookings.list"
@@ -44,6 +46,7 @@ func (h *ListGuestBookingsHandler) Handle(ctx context.Context, q ListGuestBookin
 		return dto.GuestBookingCollection{}, err
 	}
 
+	now := time.Now().UTC()
 	listingCache := make(map[domainlistings.ListingID]*domainlistings.Listing)
 	items := make([]dto.GuestBookingSummary, 0, len(bookings))
 	for _, booking := range bookings {
@@ -53,7 +56,17 @@ func (h *ListGuestBookingsHandler) Handle(ctx context.Context, q ListGuestBookin
 				h.Logger.Warn("listing snapshot missing for booking", "booking_id", booking.ID, "listing_id", booking.ListingID, "error", err)
 			}
 		}
-		items = append(items, dto.MapGuestBookingSummary(booking, listing))
+		hasReview := false
+		canReview := !booking.Range.CheckOut.After(now)
+		if reviews := unit.Reviews(); reviews != nil {
+			if _, err := reviews.ByBooking(execCtx, booking.ID, guestID); err == nil {
+				hasReview = true
+				canReview = false
+			} else if err != nil && !errors.Is(err, domainreviews.ErrNotFound) && h.Logger != nil {
+				h.Logger.Warn("failed to check review", "booking_id", booking.ID, "guest_id", guestID, "error", err)
+			}
+		}
+		items = append(items, dto.MapGuestBookingSummary(booking, listing, hasReview, canReview))
 	}
 
 	if h.Logger != nil {

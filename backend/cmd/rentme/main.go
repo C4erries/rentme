@@ -19,6 +19,7 @@ import (
 	bookingapp "rentme/internal/app/handlers/booking"
 	listingapp "rentme/internal/app/handlers/listings"
 	meapp "rentme/internal/app/handlers/me"
+	reviewsapp "rentme/internal/app/handlers/reviews"
 	"rentme/internal/app/middleware"
 	"rentme/internal/app/outbox"
 	"rentme/internal/app/queries"
@@ -143,6 +144,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		Encoder:    outbox.JSONEventEncoder{},
 	}
 	commands.RegisterHandler(commandBus, bookingapp.RequestBookingCommand{}.Key(), bookingHandler)
+	reviewSubmitHandler := &reviewsapp.SubmitReviewHandler{
+		UoWFactory: uowFactory,
+		Logger:     logger,
+	}
+	commands.RegisterHandler(commandBus, reviewsapp.SubmitReviewCommand{}.Key(), reviewSubmitHandler)
 
 	createListingHandler := &listingapp.CreateHostListingHandler{Logger: logger}
 	commands.RegisterHandler(commandBus, listingapp.CreateHostListingCommand{}.Key(), createListingHandler)
@@ -192,6 +198,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		Logger:     logger,
 	}
 	queries.RegisterHandler(queryBus, meapp.ListGuestBookingsQuery{}.Key(), meBookingsHandler)
+	listingReviewsHandler := &reviewsapp.ListListingReviewsHandler{
+		UoWFactory: uowFactory,
+		Logger:     logger,
+	}
+	queries.RegisterHandler(queryBus, reviewsapp.ListListingReviewsQuery{}.Key(), listingReviewsHandler)
 
 	commandBusWithMiddleware := middleware.ChainCommands(
 		commandBus,
@@ -209,6 +220,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 			},
 			Availability: ginserver.AvailabilityHandler{
 				Queries: queryBusWithMiddleware,
+			},
+			Reviews: ginserver.ReviewsHandler{
+				Commands: commandBusWithMiddleware,
+				Queries:  queryBusWithMiddleware,
+				Logger:   logger,
 			},
 			Listing: ginserver.ListingHandler{
 				Queries: queryBusWithMiddleware,

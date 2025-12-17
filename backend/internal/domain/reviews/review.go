@@ -13,6 +13,7 @@ import (
 
 var (
 	ErrInvalidRating = errors.New("reviews: rating must be between 1 and 5")
+	ErrNotFound      = errors.New("reviews: not found")
 )
 
 type ReviewID string
@@ -31,6 +32,7 @@ type Review struct {
 
 type Repository interface {
 	ByBooking(ctx context.Context, bookingID booking.BookingID, authorID string) (*Review, error)
+	ListByListing(ctx context.Context, listingID listings.ListingID, limit, offset int) ([]*Review, error)
 	Save(ctx context.Context, review *Review) error
 }
 

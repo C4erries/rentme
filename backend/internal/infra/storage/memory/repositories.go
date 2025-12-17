@@ -17,7 +17,7 @@ var (
 	// ErrListingNotFound is returned when a listing cannot be located in memory.
 	ErrListingNotFound = errors.New("memory: listing not found")
 	// ErrBookingNotFound is returned when a booking does not exist.
-	ErrBookingNotFound = errors.New("memory: booking not found")
+	ErrBookingNotFound = domainbooking.ErrBookingNotFound
 )
 
 // ListingRepository is an in-memory implementation for demo purposes.
@@ -346,7 +346,44 @@ func (r *ReviewsRepository) ByBooking(ctx context.Context, bookingID domainbooki
 	if review, ok := r.items[key]; ok {
 		return review, nil
 	}
-	return nil, errors.New("memory: review not found")
+	return nil, domainreviews.ErrNotFound
+}
+
+// ListByListing returns reviews for a listing ordered by creation time (newest first).
+func (r *ReviewsRepository) ListByListing(ctx context.Context, listingID domainlistings.ListingID, limit, offset int) ([]*domainreviews.Review, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	matches := make([]*domainreviews.Review, 0)
+	for _, review := range r.items {
+		if review.ListingID == listingID {
+			matches = append(matches, review)
+		}
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].CreatedAt.After(matches[j].CreatedAt)
+	})
+
+	if offset < 0 {
+		offset = 0
+	}
+	if limit < 0 {
+		limit = 0
+	}
+	start := offset
+	if start > len(matches) {
+		start = len(matches)
+	}
+	end := len(matches)
+	if limit > 0 && start+limit < end {
+		end = start + limit
+	}
+
+	result := make([]*domainreviews.Review, 0, end-start)
+	for _, review := range matches[start:end] {
+		result = append(result, review)
+	}
+	return result, nil
 }
 
 // Save writes the review entry.

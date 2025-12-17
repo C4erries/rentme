@@ -24,14 +24,16 @@ type BookingListingSnapshot struct {
 }
 
 type GuestBookingSummary struct {
-	ID        string                 `json:"id"`
-	Listing   BookingListingSnapshot `json:"listing"`
-	CheckIn   time.Time              `json:"check_in"`
-	CheckOut  time.Time              `json:"check_out"`
-	Guests    int                    `json:"guests"`
-	Status    string                 `json:"status"`
-	Total     MoneyDTO               `json:"total"`
-	CreatedAt time.Time              `json:"created_at"`
+	ID              string                 `json:"id"`
+	Listing         BookingListingSnapshot `json:"listing"`
+	CheckIn         time.Time              `json:"check_in"`
+	CheckOut        time.Time              `json:"check_out"`
+	Guests          int                    `json:"guests"`
+	Status          string                 `json:"status"`
+	Total           MoneyDTO               `json:"total"`
+	CreatedAt       time.Time              `json:"created_at"`
+	ReviewSubmitted bool                   `json:"review_submitted"`
+	CanReview       bool                   `json:"can_review"`
 }
 
 type GuestBookingCollection struct {
@@ -48,6 +50,8 @@ func MapMoney(value money.Money) MoneyDTO {
 func MapGuestBookingSummary(
 	booking *domainbooking.Booking,
 	listing *domainlistings.Listing,
+	reviewSubmitted bool,
+	canReview bool,
 ) GuestBookingSummary {
 	snapshot := BookingListingSnapshot{
 		ID: string(booking.ListingID),
@@ -61,13 +65,15 @@ func MapGuestBookingSummary(
 		snapshot.ThumbnailURL = listing.ThumbnailURL
 	}
 	return GuestBookingSummary{
-		ID:        string(booking.ID),
-		Listing:   snapshot,
-		CheckIn:   booking.Range.CheckIn,
-		CheckOut:  booking.Range.CheckOut,
-		Guests:    booking.Guests,
-		Status:    string(booking.State),
-		Total:     MapMoney(booking.Price.Total),
-		CreatedAt: booking.CreatedAt,
+		ID:              string(booking.ID),
+		Listing:         snapshot,
+		CheckIn:         booking.Range.CheckIn,
+		CheckOut:        booking.Range.CheckOut,
+		Guests:          booking.Guests,
+		Status:          string(booking.State),
+		Total:           MapMoney(booking.Price.Total),
+		CreatedAt:       booking.CreatedAt,
+		ReviewSubmitted: reviewSubmitted,
+		CanReview:       canReview,
 	}
 }

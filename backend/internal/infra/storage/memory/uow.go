@@ -27,7 +27,7 @@ var ErrFactoryMisconfigured = errors.New("memory: unit of work factory misconfig
 // Begin starts a lightweight transaction boundary. No isolation is provided but
 // the abstraction matches the application ports.
 func (f Factory) Begin(ctx context.Context, opts uow.TxOptions) (uow.UnitOfWork, error) {
-	if f.ListingsRepo == nil || f.AvailabilityRepo == nil || f.BookingRepo == nil {
+	if f.ListingsRepo == nil || f.AvailabilityRepo == nil || f.BookingRepo == nil || f.ReviewsRepo == nil {
 		return nil, ErrFactoryMisconfigured
 	}
 	return &Unit{
