@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -67,6 +68,48 @@ func (r *UserRepository) Save(ctx context.Context, user *domainuser.User) error 
 	r.byEmail[emailKey] = user.ID
 	r.byID[user.ID] = cloneUser(user)
 	return nil
+}
+
+func (r *UserRepository) List(ctx context.Context, params domainuser.ListParams) ([]*domainuser.User, int, error) {
+	limit := params.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	query := strings.ToLower(strings.TrimSpace(params.Query))
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	matches := make([]*domainuser.User, 0, len(r.byID))
+	for _, user := range r.byID {
+		if query != "" {
+			if !strings.Contains(strings.ToLower(user.Email), query) && !strings.Contains(strings.ToLower(user.Name), query) {
+				continue
+			}
+		}
+		matches = append(matches, cloneUser(user))
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		if matches[i].CreatedAt.Equal(matches[j].CreatedAt) {
+			return strings.Compare(string(matches[i].ID), string(matches[j].ID)) < 0
+		}
+		return matches[i].CreatedAt.After(matches[j].CreatedAt)
+	})
+
+	total := len(matches)
+	if offset > total {
+		offset = total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return matches[offset:end], total, nil
 }
 
 func cloneUser(u *domainuser.User) *domainuser.User {

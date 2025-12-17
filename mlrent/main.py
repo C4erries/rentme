@@ -5,6 +5,9 @@ from pydantic import BaseModel
 
 from mlrent.ml import (
     build_feature_vector_from_dict,
+    dataset_paths_for_term,
+    evaluate_model,
+    parser,
     predict,
     train_long_term,
     train_short_term,
@@ -38,6 +41,18 @@ class PredictResponse(BaseModel):
     recommended_price: float
     current_price: Optional[float] = None
     diff: Optional[float] = None
+
+
+class ModelMetrics(BaseModel):
+    mae: float
+    rmse: float
+    train_size: int
+    test_size: int
+
+
+class MetricsResponse(BaseModel):
+    short_term: ModelMetrics
+    long_term: ModelMetrics
 
 
 @app.on_event("startup")
@@ -101,6 +116,29 @@ async def predict_short(request: PredictRequest):
 async def predict_long(request: PredictRequest):
     request.rental_term = "long_term"
     return _predict_with_term(request, "long_term")
+
+
+@app.get("/metrics", response_model=MetricsResponse)
+async def metrics():
+    if SHORT_MODEL is None or LONG_MODEL is None:
+        raise HTTPException(status_code=503, detail="Models are not loaded")
+    return MetricsResponse(
+        short_term=_metrics_for_term("short_term", SHORT_MODEL),
+        long_term=_metrics_for_term("long_term", LONG_MODEL),
+    )
+
+
+def _metrics_for_term(term: str, model):
+    train_path, test_path = dataset_paths_for_term(term)
+    train_data, train_labels = parser(str(train_path))
+    test_data, test_labels = parser(str(test_path))
+    mae, rmse = evaluate_model(model, test_data, test_labels)
+    return ModelMetrics(
+        mae=mae,
+        rmse=rmse,
+        train_size=len(train_labels),
+        test_size=len(test_labels),
+    )
 
 
 if __name__ == "__main__":

@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
 
 	"rentme/internal/app/commands"
 	availabilityapp "rentme/internal/app/handlers/availability"
@@ -26,6 +29,7 @@ import (
 	authsvc "rentme/internal/app/services/auth"
 	"rentme/internal/domain/listings"
 	domainpricing "rentme/internal/domain/pricing"
+	domainuser "rentme/internal/domain/user"
 	"rentme/internal/infra/config"
 	ginserver "rentme/internal/infra/http/gin"
 	infraMessaging "rentme/internal/infra/messaging"
@@ -127,21 +131,24 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 	availabilityRepo := memory.NewAvailabilityRepository()
 	bookingRepo := memory.NewBookingRepository()
 	reviewsRepo := memory.NewReviewsRepository()
-	pricingCalc := resolvePricingCalculator(cfg, listingsRepo, logger)
+	httpClient := &http.Client{Timeout: 5 * time.Second}
+	pricingCalc := resolvePricingCalculator(cfg, httpClient, listingsRepo, logger)
 	pricingPort := memory.PricingPortAdapter{Calculator: pricingCalc}
 	uploader := resolveUploader(cfg, logger)
 	outboxStore := memory.NewOutbox()
 	idStore := memory.NewIdempotencyStore()
 	userRepo := memory.NewUserRepository()
 	sessionStore := memory.NewSessionStore()
+	passwordHasher := security.BcryptHasher{}
 	authService := &authsvc.Service{
 		Users:      userRepo,
 		Sessions:   sessionStore,
-		Passwords:  security.BcryptHasher{},
+		Passwords:  passwordHasher,
 		Tokens:     security.RandomTokenGenerator{Size: 48},
 		SessionTTL: 24 * time.Hour,
 		Logger:     logger,
 	}
+	seedDevAdmin(cfg.Env, userRepo, passwordHasher, logger)
 	messagingClient, msgCleanup := resolveMessagingClient(cfg, logger)
 	if msgCleanup != nil {
 		cleanup = append(cleanup, msgCleanup)
@@ -266,6 +273,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 				UoWFactory: uowFactory,
 				Logger:     logger,
 			},
+			Admin: ginserver.AdminHandler{
+				Users:   userRepo,
+				Metrics: buildMLMetricsClient(cfg, httpClient, logger),
+				Logger:  logger,
+			},
 			AuthMiddleware: ginserver.AuthMiddleware{
 				Service: authService,
 				Logger:  logger,
@@ -282,7 +294,10 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 	}
 }
 
-func resolvePricingCalculator(cfg config.Config, listingsRepo *memory.ListingRepository, logger *slog.Logger) domainpricing.Calculator {
+func resolvePricingCalculator(cfg config.Config, httpClient *http.Client, listingsRepo *memory.ListingRepository, logger *slog.Logger) domainpricing.Calculator {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 5 * time.Second}
+	}
 	mode := strings.ToLower(strings.TrimSpace(cfg.PricingMode))
 	switch mode {
 	case "ml":
@@ -290,9 +305,8 @@ func resolvePricingCalculator(cfg config.Config, listingsRepo *memory.ListingRep
 		if endpoint == "" {
 			endpoint = "http://localhost:8000/predict"
 		}
-		client := &http.Client{Timeout: 5 * time.Second}
 		return &mlpricing.MLPricingEngine{
-			Client:   client,
+			Client:   httpClient,
 			Endpoint: endpoint,
 			Listings: listingsRepo,
 			Logger:   logger,
@@ -332,6 +346,101 @@ func resolveUploader(cfg config.Config, logger *slog.Logger) storages3.Uploader 
 		return storages3.NoopUploader{}
 	}
 	return uploader
+}
+
+func buildMLMetricsClient(cfg config.Config, httpClient *http.Client, logger *slog.Logger) *mlpricing.MetricsClient {
+	endpoint := deriveMLMetricsEndpoint(cfg.MLPricingURL)
+	if endpoint == "" {
+		return nil
+	}
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 5 * time.Second}
+	}
+	return &mlpricing.MetricsClient{
+		Endpoint: endpoint,
+		Client:   httpClient,
+		Logger:   logger,
+	}
+}
+
+func deriveMLMetricsEndpoint(predictURL string) string {
+	raw := strings.TrimSpace(predictURL)
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	parsed.Path = "/metrics"
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+func seedDevAdmin(env string, repo domainuser.Repository, hasher security.BcryptHasher, logger *slog.Logger) {
+	email := strings.TrimSpace(getenv("ADMIN_EMAIL", ""))
+	password := getenv("ADMIN_PASSWORD", "")
+	if email == "" || password == "" {
+		if strings.ToLower(strings.TrimSpace(env)) != "dev" {
+			return
+		}
+		email = "admin@rentme.dev"
+		password = "adminadmin"
+	}
+	ctx := context.Background()
+	user, err := repo.ByEmail(ctx, email)
+	if err == nil && user != nil {
+		if user.HasRole("admin") {
+			return
+		}
+		if err := user.EnsureRole("admin", time.Now()); err == nil {
+			if saveErr := repo.Save(ctx, user); saveErr != nil && logger != nil {
+				logger.Warn("cannot update dev admin user", "error", saveErr)
+			} else if logger != nil {
+				logger.Info("dev admin role added", "user_id", user.ID, "email", user.Email)
+			}
+		}
+		return
+	}
+	if err != nil && !errors.Is(err, domainuser.ErrNotFound) {
+		if logger != nil {
+			logger.Warn("cannot check dev admin user", "error", err)
+		}
+		return
+	}
+
+	hash, err := hasher.Hash(password)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("cannot hash admin password", "error", err)
+		}
+		return
+	}
+	now := time.Now()
+	adminUser, err := domainuser.NewUser(domainuser.CreateParams{
+		ID:           domainuser.ID(uuid.NewString()),
+		Email:        email,
+		Name:         "Admin",
+		PasswordHash: hash,
+		Roles:        []domainuser.Role{"admin"},
+		CreatedAt:    now,
+	})
+	if err != nil {
+		if logger != nil {
+			logger.Warn("cannot create dev admin user", "error", err)
+		}
+		return
+	}
+	if err := repo.Save(ctx, adminUser); err != nil {
+		if logger != nil {
+			logger.Warn("cannot save dev admin user", "error", err)
+		}
+		return
+	}
+	if logger != nil {
+		logger.Info("dev admin seeded", "email", adminUser.Email)
+	}
 }
 
 func (a application) loadListingFixtures(ctx context.Context, path string, logger *slog.Logger) error {

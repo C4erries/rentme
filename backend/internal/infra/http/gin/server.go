@@ -51,6 +51,7 @@ type Handlers struct {
 	Auth           AuthHTTP
 	Reviews        ReviewsHTTP
 	Me             MeHTTP
+	Admin          AdminHTTP
 	AuthMiddleware gin.HandlerFunc
 }
 
@@ -129,6 +130,11 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	if h.Me != nil {
 		meGroup := api.Group("/me")
 		meGroup.GET("/bookings", h.Me.ListBookings)
+	}
+	if h.Admin != nil {
+		adminGroup := api.Group("/admin")
+		adminGroup.GET("/users", h.Admin.ListUsers)
+		adminGroup.GET("/ml/metrics", h.Admin.MLMetrics)
 	}
 
 	return &http.Server{Addr: cfg.HTTPAddr, Handler: router}

@@ -129,6 +129,26 @@ def train_long_term(train_path: Optional[str] = None) -> Pipeline:
     return train_from_csv(str(path))
 
 
+def dataset_paths_for_term(term: str) -> tuple[Path, Path]:
+    if term == "short_term":
+        train_path = SHORT_TRAIN_PATH if SHORT_TRAIN_PATH.exists() else LEGACY_TRAIN_PATH
+        test_path = SHORT_TEST_PATH if SHORT_TEST_PATH.exists() else LEGACY_TEST_PATH
+    else:
+        train_path = LONG_TRAIN_PATH if LONG_TRAIN_PATH.exists() else LEGACY_TRAIN_PATH
+        test_path = LONG_TEST_PATH if LONG_TEST_PATH.exists() else LEGACY_TEST_PATH
+    return train_path, test_path
+
+
+def evaluate_model(model: Pipeline, test_data, test_labels) -> tuple[float, float]:
+    if model is None or len(test_labels) == 0:
+        return 0.0, 0.0
+    predictions = model.predict(test_data)
+    errors = predictions - test_labels
+    mae = float(np.mean(np.abs(errors)))
+    rmse = float(np.sqrt(np.mean(np.square(errors))))
+    return mae, rmse
+
+
 def test(model: Pipeline, test_l, test_d):
     """
     ?‘??‘?‘'çü‘?ø‘? õç‘Øø‘'‘? õ‘?ç?‘?óøúø?ñü ñ ‘?‘?ç??çü ø+‘??>‘?‘'??ü ?‘?ñ+óñ

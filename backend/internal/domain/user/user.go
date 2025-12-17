@@ -42,6 +42,7 @@ type User struct {
 type Repository interface {
 	ByID(ctx context.Context, id ID) (*User, error)
 	ByEmail(ctx context.Context, email string) (*User, error)
+	List(ctx context.Context, params ListParams) ([]*User, int, error)
 	Save(ctx context.Context, user *User) error
 }
 
@@ -52,6 +53,13 @@ type CreateParams struct {
 	PasswordHash string
 	Roles        []Role
 	CreatedAt    time.Time
+}
+
+// ListParams defines pagination and filtering for user search.
+type ListParams struct {
+	Query  string
+	Limit  int
+	Offset int
 }
 
 func NewUser(params CreateParams) (*User, error) {
