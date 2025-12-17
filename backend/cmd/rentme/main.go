@@ -28,6 +28,7 @@ import (
 	domainpricing "rentme/internal/domain/pricing"
 	"rentme/internal/infra/config"
 	ginserver "rentme/internal/infra/http/gin"
+	infraMessaging "rentme/internal/infra/messaging"
 	"rentme/internal/infra/obs"
 	mlpricing "rentme/internal/infra/pricing"
 	"rentme/internal/infra/security"
@@ -64,6 +65,17 @@ func main() {
 		cfg.S3SecretKey = getenv("S3_SECRET_KEY", "minioadmin")
 		cfg.S3Bucket = getenv("S3_BUCKET", "rentme-photos")
 		cfg.S3UseSSL = parseBoolWithDefault(getenv("S3_USE_SSL", "false"), false)
+		cfg.MessagingGRPCAddr = getenv("MESSAGING_GRPC_ADDR", "localhost:9000")
+		if d, err := time.ParseDuration(getenv("MESSAGING_GRPC_DIAL_TIMEOUT", "")); err == nil && d > 0 {
+			cfg.MessagingGRPCDial = d
+		} else {
+			cfg.MessagingGRPCDial = 3 * time.Second
+		}
+		if d, err := time.ParseDuration(getenv("MESSAGING_GRPC_TIMEOUT", "")); err == nil && d > 0 {
+			cfg.MessagingGRPCTime = d
+		} else {
+			cfg.MessagingGRPCTime = 5 * time.Second
+		}
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = ":8080"
@@ -73,6 +85,7 @@ func main() {
 	server := ginserver.NewServer(cfg, obs.Middleware{Logger: logger}, obs.HealthHandlers{
 		Ready: func() error { return nil },
 	}, app.handlers)
+	defer app.close()
 
 	fixturesPath := getenv("LISTINGS_FIXTURES", "")
 	if fixturesPath == "" {
@@ -105,9 +118,11 @@ type application struct {
 		listings     *memory.ListingRepository
 		availability *memory.AvailabilityRepository
 	}
+	cleanup []func()
 }
 
 func buildApplication(logger *slog.Logger, cfg config.Config) application {
+	var cleanup []func()
 	listingsRepo := memory.NewListingRepository()
 	availabilityRepo := memory.NewAvailabilityRepository()
 	bookingRepo := memory.NewBookingRepository()
@@ -126,6 +141,10 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		Tokens:     security.RandomTokenGenerator{Size: 48},
 		SessionTTL: 24 * time.Hour,
 		Logger:     logger,
+	}
+	messagingClient, msgCleanup := resolveMessagingClient(cfg, logger)
+	if msgCleanup != nil {
+		cleanup = append(cleanup, msgCleanup)
 	}
 
 	uowFactory := memory.Factory{
@@ -242,6 +261,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 				Queries: queryBusWithMiddleware,
 				Logger:  logger,
 			},
+			Chat: ginserver.ChatHandler{
+				Messaging:  messagingClient,
+				UoWFactory: uowFactory,
+				Logger:     logger,
+			},
 			AuthMiddleware: ginserver.AuthMiddleware{
 				Service: authService,
 				Logger:  logger,
@@ -254,6 +278,7 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 			listings:     listingsRepo,
 			availability: availabilityRepo,
 		},
+		cleanup: cleanup,
 	}
 }
 
@@ -274,6 +299,27 @@ func resolvePricingCalculator(cfg config.Config, listingsRepo *memory.ListingRep
 		}
 	default:
 		return memory.NewPricingEngine()
+	}
+}
+
+func resolveMessagingClient(cfg config.Config, logger *slog.Logger) (*infraMessaging.Client, func()) {
+	addr := strings.TrimSpace(cfg.MessagingGRPCAddr)
+	if addr == "" {
+		return nil, nil
+	}
+	client, err := infraMessaging.NewClient(context.Background(), infraMessaging.Config{
+		Addr:        addr,
+		DialTimeout: cfg.MessagingGRPCDial,
+		CallTimeout: cfg.MessagingGRPCTime,
+	}, logger)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("messaging grpc client init failed", "error", err, "addr", addr)
+		}
+		return nil, nil
+	}
+	return client, func() {
+		_ = client.Close()
 	}
 }
 
@@ -456,4 +502,12 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func (a application) close() {
+	for _, fn := range a.cleanup {
+		if fn != nil {
+			fn()
+		}
+	}
 }

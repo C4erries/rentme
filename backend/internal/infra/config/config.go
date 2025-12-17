@@ -26,23 +26,27 @@ type Config struct {
 	S3SecretKey        string
 	S3Bucket           string
 	S3UseSSL           bool
+	MessagingGRPCAddr  string
+	MessagingGRPCDial  time.Duration
+	MessagingGRPCTime  time.Duration
 }
 
 // Load parses configuration from the current environment.
 func Load() (Config, error) {
 	cfg := Config{
-		Env:              getEnv("APP_ENV", "dev"),
-		HTTPAddr:         getEnv("HTTP_ADDR", ":8080"),
-		MongoURI:         os.Getenv("MONGO_URI"),
-		MongoDB:          getEnv("MONGO_DB", "rentals"),
-		KafkaTopicPrefix: getEnv("KAFKA_TOPIC_PREFIX", ""),
-		PricingMode:      strings.ToLower(getEnv("PRICING_MODE", "memory")),
-		MLPricingURL:     getEnv("ML_PRICING_URL", "http://localhost:8000/predict"),
-		S3Endpoint:       getEnv("S3_ENDPOINT", "http://localhost:9000"),
-		S3PublicEndpoint: getEnv("S3_PUBLIC_ENDPOINT", ""),
-		S3AccessKey:      getEnv("S3_ACCESS_KEY", "minioadmin"),
-		S3SecretKey:      getEnv("S3_SECRET_KEY", "minioadmin"),
-		S3Bucket:         getEnv("S3_BUCKET", "rentme-photos"),
+		Env:               getEnv("APP_ENV", "dev"),
+		HTTPAddr:          getEnv("HTTP_ADDR", ":8080"),
+		MongoURI:          os.Getenv("MONGO_URI"),
+		MongoDB:           getEnv("MONGO_DB", "rentals"),
+		KafkaTopicPrefix:  getEnv("KAFKA_TOPIC_PREFIX", ""),
+		PricingMode:       strings.ToLower(getEnv("PRICING_MODE", "memory")),
+		MLPricingURL:      getEnv("ML_PRICING_URL", "http://localhost:8000/predict"),
+		S3Endpoint:        getEnv("S3_ENDPOINT", "http://localhost:9000"),
+		S3PublicEndpoint:  getEnv("S3_PUBLIC_ENDPOINT", ""),
+		S3AccessKey:       getEnv("S3_ACCESS_KEY", "minioadmin"),
+		S3SecretKey:       getEnv("S3_SECRET_KEY", "minioadmin"),
+		S3Bucket:          getEnv("S3_BUCKET", "rentme-photos"),
+		MessagingGRPCAddr: getEnv("MESSAGING_GRPC_ADDR", "localhost:9000"),
 	}
 	brokers := getEnv("KAFKA_BROKERS", "")
 	if brokers != "" {
@@ -59,6 +63,18 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.OutboxPollInterval = poll
+
+	dialTimeout, err := parseDurationEnv("MESSAGING_GRPC_DIAL_TIMEOUT", 3*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.MessagingGRPCDial = dialTimeout
+
+	callTimeout, err := parseDurationEnv("MESSAGING_GRPC_TIMEOUT", 5*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.MessagingGRPCTime = callTimeout
 
 	retryStr := getEnv("RETRY_BACKOFF", "1s,5s,30s")
 	for _, raw := range strings.Split(retryStr, ",") {

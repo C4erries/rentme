@@ -12,6 +12,7 @@ services:
       KAFKA_TOPIC_PREFIX: rentme
       PRICING_MODE: ml
       ML_PRICING_URL: "http://mlpricing:8000/predict"
+      MESSAGING_GRPC_ADDR: "messaging-service:9000"
       # Local-only S3 storage for listing photos (MinIO).
       S3_ENDPOINT: "http://minio:9000"
       S3_PUBLIC_ENDPOINT: "http://localhost:9000"
@@ -27,6 +28,7 @@ services:
       - mongo
       - mlpricing
       - minio
+      - messaging-service
     networks:
       - rentme-net
   frontend:
@@ -49,6 +51,23 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - rentme-net
+  messaging-service:
+    build:
+      context: ./messaging-service
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: dev
+      GRPC_ADDR: ":9000"
+      SCYLLA_HOSTS: scylla
+      SCYLLA_KEYSPACE: rentme_messaging
+      SCYLLA_TIMEOUT: 5s
+    ports:
+      - "9000:9000"
+    depends_on:
+      - scylla
     restart: unless-stopped
     networks:
       - rentme-net
@@ -107,9 +126,20 @@ services:
     restart: unless-stopped
     networks:
       - rentme-net
+  scylla:
+    image: scylladb/scylla:5.4
+    command: --smp 1 --memory 1G --overprovisioned 1 --api-address 0.0.0.0
+    ports:
+      - "9042:9042"
+    volumes:
+      - scylla_data:/var/lib/scylla
+    restart: unless-stopped
+    networks:
+      - rentme-net
 volumes:
   kafka_data: {}
   minio_data: {}
+  scylla_data: {}
 
 networks:
   rentme-net:

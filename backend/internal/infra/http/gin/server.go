@@ -47,6 +47,7 @@ type Handlers struct {
 	Availability   AvailabilityHTTP
 	Listing        ListingHTTP
 	HostListing    HostListingHTTP
+	Chat           ChatHTTP
 	Auth           AuthHTTP
 	Reviews        ReviewsHTTP
 	Me             MeHTTP
@@ -105,6 +106,13 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	if h.Listing != nil {
 		api.GET("/listings", h.Listing.Catalog)
 		api.GET("/listings/:id/overview", h.Listing.Overview)
+	}
+	if h.Chat != nil {
+		api.POST("/chats", h.Chat.CreateDirectConversation)
+		api.GET("/me/chats", h.Chat.ListMyConversations)
+		api.GET("/chats/:id/messages", h.Chat.ListMessages)
+		api.POST("/chats/:id/messages", h.Chat.SendMessage)
+		api.POST("/listings/:id/chat", h.Chat.CreateListingConversation)
 	}
 	if h.HostListing != nil {
 		hostGroup := api.Group("/host/listings")
