@@ -112,6 +112,7 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 		api.GET("/me/chats", h.Chat.ListMyConversations)
 		api.GET("/chats/:id/messages", h.Chat.ListMessages)
 		api.POST("/chats/:id/messages", h.Chat.SendMessage)
+		api.POST("/chats/:id/read", h.Chat.MarkRead)
 		api.POST("/listings/:id/chat", h.Chat.CreateListingConversation)
 	}
 	if h.HostListing != nil {

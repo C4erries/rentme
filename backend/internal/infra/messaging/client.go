@@ -34,6 +34,9 @@ type Conversation struct {
 	Participants  []string
 	CreatedAt     time.Time
 	LastMessageAt time.Time
+	LastMessageID string
+	LastSenderID  string
+	HasUnread     bool
 }
 
 // Message models a chat message used by the HTTP layer.
@@ -132,6 +135,25 @@ func (c *Client) ListConversations(ctx context.Context, userID string, limit int
 	return items, resp.GetNextCursor(), nil
 }
 
+// MarkConversationRead updates read position for a user.
+func (c *Client) MarkConversationRead(ctx context.Context, conversationID, userID, lastReadMessageID string) (time.Time, error) {
+	req := &pb.MarkConversationReadRequest{
+		ConversationId:    conversationID,
+		UserId:            userID,
+		LastReadMessageId: lastReadMessageID,
+	}
+	callCtx, cancel := c.wrapCall(ctx)
+	defer cancel()
+	resp, err := c.svc.MarkConversationRead(callCtx, req)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if resp == nil {
+		return time.Time{}, nil
+	}
+	return resp.AsTime(), nil
+}
+
 // SendMessage posts a message to a conversation.
 func (c *Client) SendMessage(ctx context.Context, conversationID, senderID, text string) (Message, error) {
 	req := &pb.SendMessageRequest{
@@ -197,6 +219,9 @@ func mapConversation(conv *pb.Conversation) Conversation {
 		Participants:  append([]string(nil), conv.GetParticipants()...),
 		CreatedAt:     createdAt,
 		LastMessageAt: lastMessage,
+		LastMessageID: conv.GetLastMessageId(),
+		LastSenderID:  conv.GetLastMessageSenderId(),
+		HasUnread:     conv.GetHasUnread(),
 	}
 }
 

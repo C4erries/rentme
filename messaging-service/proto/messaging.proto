@@ -12,6 +12,9 @@ message Conversation {
   repeated string participants = 3;
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp last_message_at = 5;
+  string last_message_id = 6;
+  string last_message_sender_id = 7;
+  bool has_unread = 8;
 }
 
 message Message {
@@ -69,10 +72,17 @@ message ListConversationsResponse {
   string next_cursor = 2;
 }
 
+message MarkConversationReadRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  string last_read_message_id = 3;
+}
+
 service MessagingService {
   rpc GetOrCreateConversationForListing(GetOrCreateConversationForListingRequest) returns (GetConversationResponse);
   rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
   rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc MarkConversationRead(MarkConversationReadRequest) returns (.google.protobuf.Timestamp);
 }

@@ -73,7 +73,9 @@ CREATE TABLE IF NOT EXISTS %s.conversations (
 	listing_id text,
 	participants set<text>,
 	created_at timestamp,
-	last_message_at timestamp
+	last_message_at timestamp,
+	last_message_id timeuuid,
+	last_message_sender_id text
 );`, cfg.ScyllaKeyspace)
 	if err := session.Query(conversations).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("create conversations table: %w", err)
@@ -90,6 +92,18 @@ CREATE TABLE IF NOT EXISTS %s.messages (
 ) WITH CLUSTERING ORDER BY (message_id DESC);`, cfg.ScyllaKeyspace)
 	if err := session.Query(messages).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("create messages table: %w", err)
+	}
+
+	reads := fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s.conversation_reads (
+	user_id text,
+	conversation_id uuid,
+	last_read_message_id timeuuid,
+	updated_at timestamp,
+	PRIMARY KEY (user_id, conversation_id)
+);`, cfg.ScyllaKeyspace)
+	if err := session.Query(reads).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("create conversation_reads table: %w", err)
 	}
 	return nil
 }
@@ -109,11 +123,13 @@ func setAuth(cluster *gocql.ClusterConfig, cfg config.Config) {
 
 // Conversation represents a chat thread persisted in Scylla.
 type Conversation struct {
-	ID            gocql.UUID
-	ListingID     string
-	Participants  []string
-	CreatedAt     time.Time
-	LastMessageAt time.Time
+	ID                  gocql.UUID
+	ListingID           string
+	Participants        []string
+	CreatedAt           time.Time
+	LastMessageAt       time.Time
+	LastMessageID       gocql.UUID
+	LastMessageSenderID string
 }
 
 // Message represents a chat message persisted in Scylla.
@@ -123,4 +139,12 @@ type Message struct {
 	SenderID       string
 	Text           string
 	CreatedAt      time.Time
+}
+
+// ConversationRead stores last read position per user.
+type ConversationRead struct {
+	ConversationID    gocql.UUID
+	UserID            string
+	LastReadMessageID gocql.UUID
+	UpdatedAt         time.Time
 }

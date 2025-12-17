@@ -50,7 +50,7 @@ func (s *Server) GetOrCreateConversationForListing(ctx context.Context, req *pb.
 			s.Logger.Info("conversation created", "id", conversation.ID.String(), "listing_id", listingID, "participants", conversation.Participants)
 		}
 	}
-	return &pb.GetConversationResponse{Conversation: toProtoConversation(conversation)}, nil
+	return &pb.GetConversationResponse{Conversation: toProtoConversation(conversation, false)}, nil
 }
 
 // GetConversation fetches a conversation by id.
@@ -65,7 +65,7 @@ func (s *Server) GetConversation(ctx context.Context, req *pb.GetConversationReq
 		}
 		return nil, status.Errorf(codes.Internal, "load conversation: %v", err)
 	}
-	return &pb.GetConversationResponse{Conversation: toProtoConversation(conversation)}, nil
+	return &pb.GetConversationResponse{Conversation: toProtoConversation(conversation, false)}, nil
 }
 
 // SendMessage stores a message inside the conversation.
@@ -89,6 +89,9 @@ func (s *Server) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*
 	msg, err := s.Store.AddMessage(ctx, conversation.ID, senderID, text, time.Now())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "save message: %v", err)
+	}
+	if err := s.Store.MarkConversationRead(ctx, conversation.ID, senderID, msg.ID, msg.CreatedAt); err != nil && s.Logger != nil {
+		s.Logger.Warn("failed to mark conversation read for sender", "error", err, "conversation_id", conversationID, "user_id", senderID)
 	}
 	return &pb.SendMessageResponse{Message: toProtoMessage(msg, conversation)}, nil
 }
@@ -147,6 +150,13 @@ func (s *Server) ListConversations(ctx context.Context, req *pb.ListConversation
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list conversations: %v", err)
 	}
+	readStates := map[gocql.UUID]scylla.ConversationRead{}
+	if userID != "" && !includeAll {
+		readStates, err = s.Store.ListConversationReads(ctx, userID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "list conversation reads: %v", err)
+		}
+	}
 	cursorTime, cursorID, _ := parseCursor(req.GetCursor())
 	limit := normalizeLimit(int(req.GetLimit()))
 
@@ -161,7 +171,8 @@ func (s *Server) ListConversations(ctx context.Context, req *pb.ListConversation
 				continue
 			}
 		}
-		resp.Conversations = append(resp.Conversations, toProtoConversation(&conv))
+		hasUnread := userID != "" && !includeAll && calculateHasUnread(conv, readStates, userID)
+		resp.Conversations = append(resp.Conversations, toProtoConversation(&conv, hasUnread))
 		if len(resp.Conversations) == limit {
 			break
 		}
@@ -173,16 +184,59 @@ func (s *Server) ListConversations(ctx context.Context, req *pb.ListConversation
 	return resp, nil
 }
 
-func toProtoConversation(conv *scylla.Conversation) *pb.Conversation {
+// MarkConversationRead updates last read pointer for a user inside a conversation.
+func (s *Server) MarkConversationRead(ctx context.Context, req *pb.MarkConversationReadRequest) (*timestamppb.Timestamp, error) {
+	if s.Store == nil {
+		return nil, status.Error(codes.Unavailable, "store unavailable")
+	}
+	conversationID := strings.TrimSpace(req.GetConversationId())
+	userID := strings.TrimSpace(req.GetUserId())
+	if conversationID == "" || userID == "" {
+		return nil, status.Error(codes.InvalidArgument, "conversation_id and user_id are required")
+	}
+	conversation, err := s.Store.GetConversation(ctx, conversationID)
+	if err != nil {
+		if errorsIsNotFound(err) {
+			return nil, status.Error(codes.NotFound, "conversation not found")
+		}
+		return nil, status.Errorf(codes.Internal, "load conversation: %v", err)
+	}
+	var lastRead gocql.UUID
+	if trimmed := strings.TrimSpace(req.GetLastReadMessageId()); trimmed != "" {
+		lastRead, err = gocql.ParseUUID(trimmed)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid last_read_message_id")
+		}
+	} else if conversation.LastMessageID != (gocql.UUID{}) {
+		lastRead = conversation.LastMessageID
+	}
+	now := time.Now().UTC()
+	if lastRead == (gocql.UUID{}) {
+		return timestamppb.New(now), nil
+	}
+	if err := s.Store.MarkConversationRead(ctx, conversation.ID, userID, lastRead, now); err != nil {
+		return nil, status.Errorf(codes.Internal, "mark read: %v", err)
+	}
+	return timestamppb.New(now), nil
+}
+
+func toProtoConversation(conv *scylla.Conversation, hasUnread bool) *pb.Conversation {
 	if conv == nil {
 		return nil
 	}
+	lastMessageID := ""
+	if conv.LastMessageID != (gocql.UUID{}) {
+		lastMessageID = conv.LastMessageID.String()
+	}
 	return &pb.Conversation{
-		Id:            conv.ID.String(),
-		ListingId:     conv.ListingID,
-		Participants:  append([]string(nil), conv.Participants...),
-		CreatedAt:     tsOrNil(conv.CreatedAt),
-		LastMessageAt: tsOrNil(conv.LastMessageAt),
+		Id:                  conv.ID.String(),
+		ListingId:           conv.ListingID,
+		Participants:        append([]string(nil), conv.Participants...),
+		CreatedAt:           tsOrNil(conv.CreatedAt),
+		LastMessageAt:       tsOrNil(conv.LastMessageAt),
+		LastMessageId:       lastMessageID,
+		LastMessageSenderId: conv.LastMessageSenderID,
+		HasUnread:           hasUnread,
 	}
 }
 
@@ -197,6 +251,20 @@ func toProtoMessage(msg *scylla.Message, conv *scylla.Conversation) *pb.Message 
 		Text:           msg.Text,
 		CreatedAt:      tsOrNil(msg.CreatedAt),
 	}
+}
+
+func calculateHasUnread(conv scylla.Conversation, reads map[gocql.UUID]scylla.ConversationRead, userID string) bool {
+	if conv.LastMessageID == (gocql.UUID{}) {
+		return false
+	}
+	read, ok := reads[conv.ID]
+	if !ok || read.LastReadMessageID == (gocql.UUID{}) {
+		return conv.LastMessageSenderID != userID
+	}
+	if !conv.LastMessageID.Time().After(read.LastReadMessageID.Time()) {
+		return false
+	}
+	return conv.LastMessageSenderID != userID
 }
 
 func tsOrNil(t time.Time) *timestamppb.Timestamp {

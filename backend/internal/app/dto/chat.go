@@ -4,11 +4,14 @@ import "time"
 
 // Conversation describes chat metadata.
 type Conversation struct {
-	ID            string    `json:"id"`
-	ListingID     string    `json:"listing_id,omitempty"`
-	Participants  []string  `json:"participants"`
-	CreatedAt     time.Time `json:"created_at"`
-	LastMessageAt time.Time `json:"last_message_at,omitempty"`
+	ID                 string    `json:"id"`
+	ListingID          string    `json:"listing_id,omitempty"`
+	Participants       []string  `json:"participants"`
+	CreatedAt          time.Time `json:"created_at"`
+	LastMessageAt      time.Time `json:"last_message_at,omitempty"`
+	LastMessageID      string    `json:"last_message_id,omitempty"`
+	LastMessageSender  string    `json:"last_message_sender_id,omitempty"`
+	HasUnread          bool      `json:"has_unread,omitempty"`
 }
 
 // ConversationList is a paginated collection.

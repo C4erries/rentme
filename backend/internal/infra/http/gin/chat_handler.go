@@ -1,6 +1,8 @@
 package ginserver
 
 import (
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -23,6 +25,7 @@ type ChatHTTP interface {
 	SendMessage(c *gin.Context)
 	CreateListingConversation(c *gin.Context)
 	CreateDirectConversation(c *gin.Context)
+	MarkRead(c *gin.Context)
 }
 
 // ChatHandler bridges HTTP with messaging gRPC client.
@@ -66,11 +69,14 @@ func (h ChatHandler) ListMyConversations(c *gin.Context) {
 	}
 	for _, conv := range conversations {
 		collection.Items = append(collection.Items, dto.Conversation{
-			ID:            conv.ID,
-			ListingID:     conv.ListingID,
-			Participants:  append([]string(nil), conv.Participants...),
-			CreatedAt:     conv.CreatedAt,
-			LastMessageAt: conv.LastMessageAt,
+			ID:                conv.ID,
+			ListingID:         conv.ListingID,
+			Participants:      append([]string(nil), conv.Participants...),
+			CreatedAt:         conv.CreatedAt,
+			LastMessageAt:     conv.LastMessageAt,
+			LastMessageID:     conv.LastMessageID,
+			LastMessageSender: conv.LastSenderID,
+			HasUnread:         conv.HasUnread,
 		})
 	}
 	c.JSON(http.StatusOK, collection)
@@ -219,11 +225,14 @@ func (h ChatHandler) CreateListingConversation(c *gin.Context) {
 		return
 	}
 	response := dto.Conversation{
-		ID:            conversation.ID,
-		ListingID:     conversation.ListingID,
-		Participants:  append([]string(nil), conversation.Participants...),
-		CreatedAt:     conversation.CreatedAt,
-		LastMessageAt: conversation.LastMessageAt,
+		ID:                conversation.ID,
+		ListingID:         conversation.ListingID,
+		Participants:      append([]string(nil), conversation.Participants...),
+		CreatedAt:         conversation.CreatedAt,
+		LastMessageAt:     conversation.LastMessageAt,
+		LastMessageID:     conversation.LastMessageID,
+		LastMessageSender: conversation.LastSenderID,
+		HasUnread:         conversation.HasUnread,
 	}
 	c.JSON(http.StatusOK, response)
 }
@@ -264,13 +273,61 @@ func (h ChatHandler) CreateDirectConversation(c *gin.Context) {
 		return
 	}
 	response := dto.Conversation{
-		ID:            conversation.ID,
-		ListingID:     conversation.ListingID,
-		Participants:  append([]string(nil), conversation.Participants...),
-		CreatedAt:     conversation.CreatedAt,
-		LastMessageAt: conversation.LastMessageAt,
+		ID:                conversation.ID,
+		ListingID:         conversation.ListingID,
+		Participants:      append([]string(nil), conversation.Participants...),
+		CreatedAt:         conversation.CreatedAt,
+		LastMessageAt:     conversation.LastMessageAt,
+		LastMessageID:     conversation.LastMessageID,
+		LastMessageSender: conversation.LastSenderID,
+		HasUnread:         conversation.HasUnread,
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+// MarkRead marks a conversation as read for the current user.
+func (h ChatHandler) MarkRead(c *gin.Context) {
+	principal, ok := requireRole(c, "")
+	if !ok {
+		return
+	}
+	if h.Messaging == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "messaging unavailable"})
+		return
+	}
+	conversationID := strings.TrimSpace(c.Param("id"))
+	if conversationID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "conversation id is required"})
+		return
+	}
+	var req struct {
+		LastReadMessageID string `json:"last_read_message_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	conversation, err := h.Messaging.GetConversation(c.Request.Context(), conversationID)
+	if err != nil {
+		h.respondMessagingError(c, err, "load conversation")
+		return
+	}
+	if !principal.HasRole("admin") && !contains(conversation.Participants, principal.ID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not a chat participant"})
+		return
+	}
+
+	lastRead := strings.TrimSpace(req.LastReadMessageID)
+	if lastRead == "" {
+		lastRead = conversation.LastMessageID
+	}
+	readAt, err := h.Messaging.MarkConversationRead(c.Request.Context(), conversationID, principal.ID, lastRead)
+	if err != nil {
+		h.respondMessagingError(c, err, "mark read")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"read_at": readAt})
 }
 
 func (h ChatHandler) respondMessagingError(c *gin.Context, err error, action string) {

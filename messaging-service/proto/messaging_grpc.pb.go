@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: proto/messaging.proto
+// source: messaging.proto
 
 package messagingpb
 
@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -24,6 +25,7 @@ const (
 	MessagingService_SendMessage_FullMethodName                       = "/messaging.v1.MessagingService/SendMessage"
 	MessagingService_ListMessages_FullMethodName                      = "/messaging.v1.MessagingService/ListMessages"
 	MessagingService_ListConversations_FullMethodName                 = "/messaging.v1.MessagingService/ListConversations"
+	MessagingService_MarkConversationRead_FullMethodName              = "/messaging.v1.MessagingService/MarkConversationRead"
 )
 
 // MessagingServiceClient is the client API for MessagingService service.
@@ -35,6 +37,7 @@ type MessagingServiceClient interface {
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	ListMessages(ctx context.Context, in *ListMessagesRequest, opts ...grpc.CallOption) (*ListMessagesResponse, error)
 	ListConversations(ctx context.Context, in *ListConversationsRequest, opts ...grpc.CallOption) (*ListConversationsResponse, error)
+	MarkConversationRead(ctx context.Context, in *MarkConversationReadRequest, opts ...grpc.CallOption) (*timestamppb.Timestamp, error)
 }
 
 type messagingServiceClient struct {
@@ -95,6 +98,16 @@ func (c *messagingServiceClient) ListConversations(ctx context.Context, in *List
 	return out, nil
 }
 
+func (c *messagingServiceClient) MarkConversationRead(ctx context.Context, in *MarkConversationReadRequest, opts ...grpc.CallOption) (*timestamppb.Timestamp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(timestamppb.Timestamp)
+	err := c.cc.Invoke(ctx, MessagingService_MarkConversationRead_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MessagingServiceServer is the server API for MessagingService service.
 // All implementations must embed UnimplementedMessagingServiceServer
 // for forward compatibility.
@@ -104,6 +117,7 @@ type MessagingServiceServer interface {
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
 	ListMessages(context.Context, *ListMessagesRequest) (*ListMessagesResponse, error)
 	ListConversations(context.Context, *ListConversationsRequest) (*ListConversationsResponse, error)
+	MarkConversationRead(context.Context, *MarkConversationReadRequest) (*timestamppb.Timestamp, error)
 	mustEmbedUnimplementedMessagingServiceServer()
 }
 
@@ -128,6 +142,9 @@ func (UnimplementedMessagingServiceServer) ListMessages(context.Context, *ListMe
 }
 func (UnimplementedMessagingServiceServer) ListConversations(context.Context, *ListConversationsRequest) (*ListConversationsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListConversations not implemented")
+}
+func (UnimplementedMessagingServiceServer) MarkConversationRead(context.Context, *MarkConversationReadRequest) (*timestamppb.Timestamp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MarkConversationRead not implemented")
 }
 func (UnimplementedMessagingServiceServer) mustEmbedUnimplementedMessagingServiceServer() {}
 func (UnimplementedMessagingServiceServer) testEmbeddedByValue()                          {}
@@ -240,6 +257,24 @@ func _MessagingService_ListConversations_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MessagingService_MarkConversationRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MarkConversationReadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MessagingServiceServer).MarkConversationRead(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MessagingService_MarkConversationRead_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessagingServiceServer).MarkConversationRead(ctx, req.(*MarkConversationReadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MessagingService_ServiceDesc is the grpc.ServiceDesc for MessagingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -267,7 +302,11 @@ var MessagingService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ListConversations",
 			Handler:    _MessagingService_ListConversations_Handler,
 		},
+		{
+			MethodName: "MarkConversationRead",
+			Handler:    _MessagingService_MarkConversationRead_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/messaging.proto",
+	Metadata: "messaging.proto",
 }
