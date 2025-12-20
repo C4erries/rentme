@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	domainlistings "rentme/internal/domain/listings"
@@ -81,11 +82,19 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 	if rentalTerm == "" {
 		rentalTerm = domainlistings.RentalTermLong
 	}
+	travelMinutes := listing.TravelMinutes
+	if travelMinutes <= 0 {
+		travelMinutes = 20
+	}
+	travelMode := listing.TravelMode
+	if strings.TrimSpace(travelMode) == "" {
+		travelMode = "car"
+	}
 	reqPayload := mlPredictRequest{
 		ListingID:        string(listing.ID),
 		City:             listing.Address.City,
-		Minutes:          20, // TODO: derive from geodata
-		Way:              "car",
+		Minutes:          travelMinutes,
+		Way:              travelMode,
 		Rooms:            listing.Bedrooms,
 		TotalArea:        listing.AreaSquareMeters,
 		Storey:           listing.Floor,

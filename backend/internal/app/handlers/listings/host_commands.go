@@ -44,6 +44,8 @@ type HostListingPayload struct {
 	RenovationScore      int
 	BuildingAgeYears     int
 	AreaSquareMeters     float64
+	TravelMinutes        float64
+	TravelMode           string
 	RentalTermType       domainlistings.RentalTermType
 	AvailableFrom        time.Time
 	Photos               []string
@@ -93,6 +95,8 @@ func (h *CreateHostListingHandler) Handle(ctx context.Context, cmd CreateHostLis
 		RenovationScore:      cmd.Payload.RenovationScore,
 		BuildingAgeYears:     cmd.Payload.BuildingAgeYears,
 		AreaSquareMeters:     cmd.Payload.AreaSquareMeters,
+		TravelMinutes:        cmd.Payload.TravelMinutes,
+		TravelMode:           cmd.Payload.TravelMode,
 		RentalTermType:       cmd.Payload.RentalTermType,
 		ThumbnailURL:         cmd.Payload.ThumbnailURL,
 		Photos:               cmd.Payload.Photos,
@@ -169,6 +173,8 @@ func (h *UpdateHostListingHandler) Handle(ctx context.Context, cmd UpdateHostLis
 		RenovationScore:      cmd.Payload.RenovationScore,
 		BuildingAgeYears:     cmd.Payload.BuildingAgeYears,
 		AreaSquareMeters:     cmd.Payload.AreaSquareMeters,
+		TravelMinutes:        cmd.Payload.TravelMinutes,
+		TravelMode:           cmd.Payload.TravelMode,
 		RentalTermType:       cmd.Payload.RentalTermType,
 		AvailableFrom:        cmd.Payload.AvailableFrom,
 		Photos:               cmd.Payload.Photos,

@@ -11,6 +11,7 @@ type Conversation struct {
 	LastMessageAt      time.Time `json:"last_message_at,omitempty"`
 	LastMessageID      string    `json:"last_message_id,omitempty"`
 	LastMessageSender  string    `json:"last_message_sender_id,omitempty"`
+	LastMessageText    string    `json:"last_message_text,omitempty"`
 	HasUnread          bool      `json:"has_unread,omitempty"`
 }
 

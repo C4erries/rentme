@@ -149,6 +149,7 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		Logger:     logger,
 	}
 	seedDevAdmin(cfg.Env, userRepo, passwordHasher, logger)
+	seedDemoUsers(cfg.Env, userRepo, passwordHasher, logger)
 	messagingClient, msgCleanup := resolveMessagingClient(cfg, logger)
 	if msgCleanup != nil {
 		cleanup = append(cleanup, msgCleanup)
@@ -440,6 +441,91 @@ func seedDevAdmin(env string, repo domainuser.Repository, hasher security.Bcrypt
 	}
 	if logger != nil {
 		logger.Info("dev admin seeded", "email", adminUser.Email)
+	}
+}
+
+func seedDemoUsers(env string, repo domainuser.Repository, hasher security.BcryptHasher, logger *slog.Logger) {
+	seed := parseBoolWithDefault(getenv("DEMO_SEED", ""), strings.ToLower(strings.TrimSpace(env)) == "dev")
+	if !seed || repo == nil {
+		return
+	}
+	type demoUser struct {
+		ID       string
+		Email    string
+		Name     string
+		Password string
+		Roles    []domainuser.Role
+	}
+	accounts := []demoUser{
+		{ID: "demo-admin", Email: "demo-admin@rentme.dev", Name: "Demo Admin", Password: "demo1234", Roles: []domainuser.Role{"admin", "host", "guest"}},
+		{ID: "host-demo", Email: "host-demo@rentme.dev", Name: "Demo Host", Password: "demo1234", Roles: []domainuser.Role{"host", "guest"}},
+		{ID: "host-lakeside", Email: "host-lakeside@rentme.dev", Name: "Host Lakeside", Password: "demo1234", Roles: []domainuser.Role{"host", "guest"}},
+		{ID: "host-townhouse", Email: "host-townhouse@rentme.dev", Name: "Host Townhouse", Password: "demo1234", Roles: []domainuser.Role{"host"}},
+		{ID: "host-nordic", Email: "host-nordic@rentme.dev", Name: "Host Nordic", Password: "demo1234", Roles: []domainuser.Role{"host"}},
+		{ID: "host-botanical", Email: "host-botanical@rentme.dev", Name: "Host Botanical", Password: "demo1234", Roles: []domainuser.Role{"host"}},
+		{ID: "guest-olga", Email: "guest-olga@rentme.dev", Name: "Ольга (гость)", Password: "demo1234", Roles: []domainuser.Role{"guest"}},
+		{ID: "guest-ivan", Email: "guest-ivan@rentme.dev", Name: "Иван (гость)", Password: "demo1234", Roles: []domainuser.Role{"guest"}},
+	}
+
+	ctx := context.Background()
+	for _, acc := range accounts {
+		existing, err := repo.ByEmail(ctx, acc.Email)
+		if err == nil && existing != nil {
+			updated := false
+			if acc.ID != "" && string(existing.ID) != acc.ID {
+				if logger != nil {
+					logger.Warn("demo user email already used by different id", "email", acc.Email, "existing_id", existing.ID, "expected_id", acc.ID)
+				}
+			}
+			for _, role := range acc.Roles {
+				if ensureErr := existing.EnsureRole(role, time.Now()); ensureErr == nil {
+					updated = true
+				}
+			}
+			if updated {
+				if saveErr := repo.Save(ctx, existing); saveErr != nil && logger != nil {
+					logger.Warn("cannot update demo user roles", "email", acc.Email, "error", saveErr)
+				}
+			}
+			continue
+		}
+		if err != nil && !errors.Is(err, domainuser.ErrNotFound) {
+			if logger != nil {
+				logger.Warn("cannot check demo user", "email", acc.Email, "error", err)
+			}
+			continue
+		}
+
+		hash, err := hasher.Hash(acc.Password)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("cannot hash demo password", "email", acc.Email, "error", err)
+			}
+			continue
+		}
+		userModel, err := domainuser.NewUser(domainuser.CreateParams{
+			ID:           domainuser.ID(acc.ID),
+			Email:        acc.Email,
+			Name:         acc.Name,
+			PasswordHash: hash,
+			Roles:        acc.Roles,
+			CreatedAt:    time.Now(),
+		})
+		if err != nil {
+			if logger != nil {
+				logger.Warn("cannot build demo user", "email", acc.Email, "error", err)
+			}
+			continue
+		}
+		if err := repo.Save(ctx, userModel); err != nil {
+			if logger != nil {
+				logger.Warn("cannot save demo user", "email", acc.Email, "error", err)
+			}
+			continue
+		}
+		if logger != nil {
+			logger.Info("demo user seeded", "email", acc.Email, "roles", acc.Roles)
+		}
 	}
 }
 

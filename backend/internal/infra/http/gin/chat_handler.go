@@ -76,6 +76,7 @@ func (h ChatHandler) ListMyConversations(c *gin.Context) {
 			LastMessageAt:     conv.LastMessageAt,
 			LastMessageID:     conv.LastMessageID,
 			LastMessageSender: conv.LastSenderID,
+			LastMessageText:   conv.LastMessageText,
 			HasUnread:         conv.HasUnread,
 		})
 	}
@@ -242,6 +243,7 @@ func (h ChatHandler) CreateListingConversation(c *gin.Context) {
 		LastMessageAt:     conversation.LastMessageAt,
 		LastMessageID:     conversation.LastMessageID,
 		LastMessageSender: conversation.LastSenderID,
+		LastMessageText:   conversation.LastMessageText,
 		HasUnread:         conversation.HasUnread,
 	}
 	c.JSON(http.StatusOK, response)
@@ -290,6 +292,7 @@ func (h ChatHandler) CreateDirectConversation(c *gin.Context) {
 		LastMessageAt:     conversation.LastMessageAt,
 		LastMessageID:     conversation.LastMessageID,
 		LastMessageSender: conversation.LastSenderID,
+		LastMessageText:   conversation.LastMessageText,
 		HasUnread:         conversation.HasUnread,
 	}
 	c.JSON(http.StatusOK, response)
@@ -341,11 +344,16 @@ func (h ChatHandler) MarkRead(c *gin.Context) {
 }
 
 func (h ChatHandler) respondMessagingError(c *gin.Context, err error, action string, attrs ...any) {
-	if h.Logger != nil {
-		h.Logger.Error("messaging call failed", append([]any{"action", action, "error", err}, attrs...)...)
+	code := codes.Unknown
+	st, ok := status.FromError(err)
+	if ok {
+		code = st.Code()
 	}
-	if st, ok := status.FromError(err); ok {
-		switch st.Code() {
+	if h.Logger != nil {
+		h.Logger.Error("messaging call failed", append([]any{"action", action, "grpc_code", code.String(), "error", err}, attrs...)...)
+	}
+	if ok {
+		switch code {
 		case codes.NotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return

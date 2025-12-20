@@ -33,10 +33,10 @@ func (s *Store) GetConversation(ctx context.Context, id string) (*Conversation, 
 	}
 	var row Conversation
 	if err := s.session.
-		Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id FROM conversations WHERE id = ? LIMIT 1`, uuid).
+		Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id, last_message_text FROM conversations WHERE id = ? LIMIT 1`, uuid).
 		WithContext(ctx).
 		Consistency(gocql.One).
-		Scan(&row.ID, &row.ListingID, &row.Participants, &row.CreatedAt, &row.LastMessageAt, &row.LastMessageID, &row.LastMessageSenderID); err != nil {
+		Scan(&row.ID, &row.ListingID, &row.Participants, &row.CreatedAt, &row.LastMessageAt, &row.LastMessageID, &row.LastMessageSenderID, &row.LastMessageText); err != nil {
 		return nil, err
 	}
 	return &row, nil
@@ -49,7 +49,7 @@ func (s *Store) FindConversationByListing(ctx context.Context, listingID string,
 	}
 	normalizedParticipants := normalizeParticipants(participants)
 	iter := s.session.
-		Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id FROM conversations WHERE listing_id = ? ALLOW FILTERING`, listingID).
+		Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id, last_message_text FROM conversations WHERE listing_id = ? ALLOW FILTERING`, listingID).
 		WithContext(ctx).
 		Consistency(gocql.One).
 		Iter()
@@ -62,8 +62,9 @@ func (s *Store) FindConversationByListing(ctx context.Context, listingID string,
 		lastMessageAt time.Time
 		lastMessageID gocql.UUID
 		lastSenderID  string
+		lastText      string
 	)
-	for iter.Scan(&id, &listing, &storedParts, &createdAt, &lastMessageAt, &lastMessageID, &lastSenderID) {
+	for iter.Scan(&id, &listing, &storedParts, &createdAt, &lastMessageAt, &lastMessageID, &lastSenderID, &lastText) {
 		if sameParticipants(storedParts, normalizedParticipants) {
 			return &Conversation{
 				ID:                  id,
@@ -73,6 +74,7 @@ func (s *Store) FindConversationByListing(ctx context.Context, listingID string,
 				LastMessageAt:       lastMessageAt,
 				LastMessageID:       lastMessageID,
 				LastMessageSenderID: lastSenderID,
+				LastMessageText:     lastText,
 			}, nil
 		}
 	}
@@ -94,8 +96,8 @@ func (s *Store) CreateConversation(ctx context.Context, listingID string, partic
 	now = now.UTC()
 	normalizedParticipants := normalizeParticipants(participants)
 	if err := s.session.
-		Query(`INSERT INTO conversations (id, listing_id, participants, created_at, last_message_at) VALUES (?, ?, ?, ?, ?)`,
-			id, listingID, normalizedParticipants, now, now).
+		Query(`INSERT INTO conversations (id, listing_id, participants, created_at, last_message_at, last_message_text) VALUES (?, ?, ?, ?, ?, ?)`,
+			id, listingID, normalizedParticipants, now, now, "").
 		WithContext(ctx).
 		Consistency(gocql.Quorum).
 		Exec(); err != nil {
@@ -118,13 +120,13 @@ func (s *Store) ListConversations(ctx context.Context, userID string, includeAll
 	var iter *gocql.Iter
 	if includeAll {
 		iter = s.session.
-			Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id FROM conversations`).
+			Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id, last_message_text FROM conversations`).
 			WithContext(ctx).
 			Consistency(gocql.One).
 			Iter()
 	} else {
 		iter = s.session.
-			Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id FROM conversations WHERE participants CONTAINS ? ALLOW FILTERING`, userID).
+			Query(`SELECT id, listing_id, participants, created_at, last_message_at, last_message_id, last_message_sender_id, last_message_text FROM conversations WHERE participants CONTAINS ? ALLOW FILTERING`, userID).
 			WithContext(ctx).
 			Consistency(gocql.One).
 			Iter()
@@ -138,9 +140,10 @@ func (s *Store) ListConversations(ctx context.Context, userID string, includeAll
 		lastMessageAt time.Time
 		lastMessageID gocql.UUID
 		lastSenderID  string
+		lastText      string
 	)
 	conversations := make([]Conversation, 0)
-	for iter.Scan(&id, &listing, &participants, &createdAt, &lastMessageAt, &lastMessageID, &lastSenderID) {
+	for iter.Scan(&id, &listing, &participants, &createdAt, &lastMessageAt, &lastMessageID, &lastSenderID, &lastText) {
 		conversations = append(conversations, Conversation{
 			ID:                  id,
 			ListingID:           listing,
@@ -149,6 +152,7 @@ func (s *Store) ListConversations(ctx context.Context, userID string, includeAll
 			LastMessageAt:       lastMessageAt,
 			LastMessageID:       lastMessageID,
 			LastMessageSenderID: lastSenderID,
+			LastMessageText:     lastText,
 		})
 	}
 	if err := iter.Close(); err != nil {
@@ -166,6 +170,7 @@ func (s *Store) AddMessage(ctx context.Context, conversationID gocql.UUID, sende
 	if s.session == nil {
 		return nil, errors.New("scylla session not initialized")
 	}
+	snippet := trimSnippet(text, 500)
 	if at.IsZero() {
 		at = time.Now()
 	}
@@ -181,8 +186,8 @@ func (s *Store) AddMessage(ctx context.Context, conversationID gocql.UUID, sende
 	}
 	// best-effort update of last_message_at
 	if err := s.session.
-		Query(`UPDATE conversations SET last_message_at = ?, last_message_id = ?, last_message_sender_id = ? WHERE id = ?`,
-			at, messageID, senderID, conversationID).
+		Query(`UPDATE conversations SET last_message_at = ?, last_message_id = ?, last_message_sender_id = ?, last_message_text = ? WHERE id = ?`,
+			at, messageID, senderID, snippet, conversationID).
 		WithContext(ctx).
 		Consistency(gocql.One).
 		Exec(); err != nil && s.logger != nil {
@@ -195,6 +200,17 @@ func (s *Store) AddMessage(ctx context.Context, conversationID gocql.UUID, sende
 		Text:           text,
 		CreatedAt:      at,
 	}, nil
+}
+
+func trimSnippet(text string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	runes := []rune(strings.TrimSpace(text))
+	if len(runes) <= max {
+		return string(runes)
+	}
+	return string(runes[:max])
 }
 
 // MarkConversationRead upserts read position for a user.

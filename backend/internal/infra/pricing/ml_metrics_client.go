@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"net"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -39,7 +40,7 @@ func (c *MetricsClient) Fetch(ctx context.Context) (*MLMetrics, error) {
 		return nil, errors.New("ml metrics: endpoint not configured")
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Endpoint, nil)
@@ -50,9 +51,9 @@ func (c *MetricsClient) Fetch(ctx context.Context) (*MLMetrics, error) {
 	if err != nil {
 		var netErr net.Error
 		if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
-			err = fmt.Errorf("ml metrics: pricing service timeout: %w", err)
+			err = fmt.Errorf("ml metrics: pricing service timeout (%s)", c.Endpoint)
 		} else {
-			err = fmt.Errorf("ml metrics: pricing service unavailable: %w", err)
+			err = fmt.Errorf("ml metrics: pricing service unavailable (%s)", c.Endpoint)
 		}
 		c.logError("metrics request failed", err)
 		return nil, err
@@ -61,7 +62,7 @@ func (c *MetricsClient) Fetch(ctx context.Context) (*MLMetrics, error) {
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		err := fmt.Errorf("ml metrics: pricing service returned %d: %s", resp.StatusCode, string(snippet))
+		err := fmt.Errorf("ml metrics: pricing service returned %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))
 		c.logError("metrics returned error", err)
 		return nil, err
 	}

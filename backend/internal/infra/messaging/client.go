@@ -36,6 +36,7 @@ type Conversation struct {
 	LastMessageAt time.Time
 	LastMessageID string
 	LastSenderID  string
+	LastMessageText string
 	HasUnread     bool
 }
 
@@ -214,14 +215,15 @@ func mapConversation(conv *pb.Conversation) Conversation {
 		lastMessage = conv.LastMessageAt.AsTime()
 	}
 	return Conversation{
-		ID:            conv.GetId(),
-		ListingID:     conv.GetListingId(),
-		Participants:  append([]string(nil), conv.GetParticipants()...),
-		CreatedAt:     createdAt,
-		LastMessageAt: lastMessage,
-		LastMessageID: conv.GetLastMessageId(),
-		LastSenderID:  conv.GetLastMessageSenderId(),
-		HasUnread:     conv.GetHasUnread(),
+		ID:              conv.GetId(),
+		ListingID:       conv.GetListingId(),
+		Participants:    append([]string(nil), conv.GetParticipants()...),
+		CreatedAt:       createdAt,
+		LastMessageAt:   lastMessage,
+		LastMessageID:   conv.GetLastMessageId(),
+		LastSenderID:    conv.GetLastMessageSenderId(),
+		LastMessageText: conv.GetLastMessageText(),
+		HasUnread:       conv.GetHasUnread(),
 	}
 }
 

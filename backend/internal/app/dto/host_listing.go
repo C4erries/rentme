@@ -1,4 +1,4 @@
-package dto
+﻿package dto
 
 import (
 	"strings"
@@ -34,6 +34,8 @@ type HostListingSummary struct {
 	RenovationScore  int       `json:"renovation_score"`
 	BuildingAgeYears int       `json:"building_age_years"`
 	AreaSquareMeters float64   `json:"area_sq_m"`
+	TravelMinutes    float64   `json:"travel_minutes"`
+	TravelMode       string    `json:"travel_mode"`
 	RentalTerm       string    `json:"rental_term"`
 	AvailableFrom    time.Time `json:"available_from"`
 	ThumbnailURL     string    `json:"thumbnail_url"`
@@ -65,6 +67,8 @@ type HostListingDetail struct {
 	RenovationScore      int            `json:"renovation_score"`
 	BuildingAgeYears     int            `json:"building_age_years"`
 	AreaSquareMeters     float64        `json:"area_sq_m"`
+	TravelMinutes        float64        `json:"travel_minutes"`
+	TravelMode           string         `json:"travel_mode"`
 	RentalTerm           string         `json:"rental_term"`
 	ThumbnailURL         string         `json:"thumbnail_url"`
 	Photos               []string       `json:"photos"`
@@ -101,6 +105,8 @@ func MapHostListingSummary(listing *domainlistings.Listing) HostListingSummary {
 		RenovationScore:  listing.RenovationScore,
 		BuildingAgeYears: listing.BuildingAgeYears,
 		AreaSquareMeters: listing.AreaSquareMeters,
+		TravelMinutes:    listing.TravelMinutes,
+		TravelMode:       listing.TravelMode,
 		RentalTerm:       string(listing.RentalTermType),
 		AvailableFrom:    listing.AvailableFrom,
 		ThumbnailURL:     listing.ThumbnailURL,
@@ -146,6 +152,8 @@ func MapHostListingDetail(listing *domainlistings.Listing) HostListingDetail {
 		RenovationScore:      listing.RenovationScore,
 		BuildingAgeYears:     listing.BuildingAgeYears,
 		AreaSquareMeters:     listing.AreaSquareMeters,
+		TravelMinutes:        listing.TravelMinutes,
+		TravelMode:           listing.TravelMode,
 		RentalTerm:           string(listing.RentalTermType),
 		ThumbnailURL:         listing.ThumbnailURL,
 		Photos:               append([]string(nil), listing.Photos...),

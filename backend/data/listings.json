@@ -233,5 +233,196 @@
     "rating": 4.85,
     "available_from": "2025-12-05T00:00:00Z",
     "property_type": "cabin"
+  },
+  {
+    "id": "listing-demo-6",
+    "host": "host-lakeside",
+    "title": "Lakeside Retreat",
+    "description": "??? ? ????? ? ???????? ? ???????, ???????? ??? ???????.",
+    "address": {
+      "line1": "Lakeside Road 15",
+      "line2": "",
+      "city": "Zurich",
+      "country": "CH",
+      "lat": 47.3769,
+      "lon": 8.5417
+    },
+    "amenities": [
+      "wifi",
+      "fireplace",
+      "parking",
+      "sauna"
+    ],
+    "guests_limit": 5,
+    "min_nights": 2,
+    "max_nights": 21,
+    "house_rules": [
+      "no parties"
+    ],
+    "cancellation_policy_id": "moderate",
+    "tags": [
+      "lake",
+      "nature"
+    ],
+    "highlights": [
+      "??????? ?? ????",
+      "???????? ?????"
+    ],
+    "nightly_rate_cents": 12500,
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "floor": 1,
+    "floors_total": 2,
+    "renovation_score": 8,
+    "building_age_years": 5,
+    "area_sq_m": 110,
+    "thumbnail_url": "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+    "rating": 4.7,
+    "available_from": "2025-12-05T00:00:00Z",
+    "property_type": "cabin",
+    "rental_term": "short_term"
+  },
+  {
+    "id": "listing-demo-7",
+    "host": "host-townhouse",
+    "title": "Townhouse Garden",
+    "description": "????? ???????? ? ????????? ????? ? ????????? ?? ?????? ?????.",
+    "address": {
+      "line1": "Green Street 7",
+      "line2": "",
+      "city": "Vilnius",
+      "country": "LT",
+      "lat": 54.6872,
+      "lon": 25.2797
+    },
+    "amenities": [
+      "wifi",
+      "kitchen",
+      "laundry",
+      "parking"
+    ],
+    "guests_limit": 5,
+    "min_nights": 7,
+    "max_nights": 90,
+    "house_rules": [
+      "no smoking"
+    ],
+    "cancellation_policy_id": "standard",
+    "tags": [
+      "family",
+      "garden"
+    ],
+    "highlights": [
+      "?????? ?????????? ????",
+      "????????? ???????"
+    ],
+    "nightly_rate_cents": 9800,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "floor": 1,
+    "floors_total": 2,
+    "renovation_score": 7,
+    "building_age_years": 8,
+    "area_sq_m": 120,
+    "thumbnail_url": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+    "rating": 4.6,
+    "available_from": "2025-12-10T00:00:00Z",
+    "property_type": "townhouse",
+    "rental_term": "long_term"
+  },
+  {
+    "id": "listing-demo-8",
+    "host": "host-botanical",
+    "title": "Botanical Loft",
+    "description": "???? ? ??????? ????? ? ???????? ?????? ? ?????? ?????.",
+    "address": {
+      "line1": "Botanic Ave 3",
+      "line2": "",
+      "city": "Riga",
+      "country": "LV",
+      "lat": 56.9496,
+      "lon": 24.1052
+    },
+    "amenities": [
+      "wifi",
+      "workspace",
+      "kitchen",
+      "balcony"
+    ],
+    "guests_limit": 3,
+    "min_nights": 2,
+    "max_nights": 30,
+    "house_rules": [
+      "no parties"
+    ],
+    "cancellation_policy_id": "flexible",
+    "tags": [
+      "plants",
+      "design"
+    ],
+    "highlights": [
+      "?????? ???",
+      "??????????? ????"
+    ],
+    "nightly_rate_cents": 7200,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "floor": 4,
+    "floors_total": 6,
+    "renovation_score": 9,
+    "building_age_years": 6,
+    "area_sq_m": 58,
+    "thumbnail_url": "https://images.unsplash.com/photo-1505693415763-3ed5e04ba4cd?auto=format&fit=crop&w=800&q=80",
+    "rating": 4.9,
+    "available_from": "2025-12-02T00:00:00Z",
+    "property_type": "apartment",
+    "rental_term": "short_term"
+  },
+  {
+    "id": "listing-demo-9",
+    "host": "host-demo",
+    "title": "City Studio",
+    "description": "?????? ? ?????? ????? ? ?????, ? ??????? ????? ? ??????? ?????.",
+    "address": {
+      "line1": "Central Ave 9",
+      "line2": "",
+      "city": "Warsaw",
+      "country": "PL",
+      "lat": 52.2297,
+      "lon": 21.0122
+    },
+    "amenities": [
+      "wifi",
+      "workspace",
+      "kitchen"
+    ],
+    "guests_limit": 2,
+    "min_nights": 1,
+    "max_nights": 20,
+    "house_rules": [
+      "no smoking"
+    ],
+    "cancellation_policy_id": "flexible",
+    "tags": [
+      "city",
+      "metro"
+    ],
+    "highlights": [
+      "??????? ????",
+      "??????? ?????"
+    ],
+    "nightly_rate_cents": 6100,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "floor": 6,
+    "floors_total": 10,
+    "renovation_score": 8,
+    "building_age_years": 4,
+    "area_sq_m": 36,
+    "thumbnail_url": "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=800&q=80",
+    "rating": 4.5,
+    "available_from": "2025-11-30T00:00:00Z",
+    "property_type": "apartment",
+    "rental_term": "short_term"
   }
 ]

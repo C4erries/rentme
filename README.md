@@ -18,6 +18,7 @@ docker-compose up
 ```
 
 Сервисы: `rentme` (backend), `frontend`, `mlpricing`, `messaging-service`, `mongo`, `minio`, `scylla`. Все сервисы общаются внутри сети `rentme-net`; фронт доступен на http://localhost:3000, backend - http://localhost:8080/api/v1.
+Демо-данные: при `APP_ENV=dev` или `DEMO_SEED=1` backend автоматически создаёт demo-аккаунты (см. `demo.md`) и подхватывает объявления из `backend/data/listings.json`.
 
 Локально без контейнеров:
 - Backend: `cd backend && go run ./cmd/rentme` (нужны переменные окружения для Mongo/MinIO/messaging).

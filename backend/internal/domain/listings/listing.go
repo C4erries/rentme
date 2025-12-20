@@ -83,6 +83,8 @@ type Listing struct {
 	RenovationScore      int
 	BuildingAgeYears     int
 	AreaSquareMeters     float64
+	TravelMinutes        float64
+	TravelMode           string
 	RentalTermType       RentalTermType
 	ThumbnailURL         string
 	Rating               float64
@@ -123,6 +125,8 @@ type CreateListingParams struct {
 	RenovationScore      int
 	BuildingAgeYears     int
 	AreaSquareMeters     float64
+	TravelMinutes        float64
+	TravelMode           string
 	RentalTermType       RentalTermType
 	ThumbnailURL         string
 	Rating               float64
@@ -165,6 +169,9 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 	if params.BuildingAgeYears < 0 {
 		return nil, ErrBuildingAge
 	}
+	if params.TravelMinutes < 0 {
+		params.TravelMinutes = 0
+	}
 	rentalTerm := normalizeRentalTerm(params.RentalTermType)
 	if rentalTerm == "" {
 		if params.RentalTermType != "" {
@@ -201,6 +208,8 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 		RenovationScore:      params.RenovationScore,
 		BuildingAgeYears:     params.BuildingAgeYears,
 		AreaSquareMeters:     params.AreaSquareMeters,
+		TravelMinutes:        params.TravelMinutes,
+		TravelMode:           strings.TrimSpace(strings.ToLower(params.TravelMode)),
 		RentalTermType:       rentalTerm,
 		ThumbnailURL:         strings.TrimSpace(params.ThumbnailURL),
 		Rating:               params.Rating,
@@ -287,6 +296,8 @@ type UpdateListingParams struct {
 	RenovationScore      int
 	BuildingAgeYears     int
 	AreaSquareMeters     float64
+	TravelMinutes        float64
+	TravelMode           string
 	AvailableFrom        time.Time
 	RentalTermType       RentalTermType
 	Photos               []string
@@ -334,6 +345,9 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 		}
 		l.RentalTermType = term
 	}
+	if params.TravelMinutes < 0 {
+		params.TravelMinutes = 0
+	}
 
 	l.Title = strings.TrimSpace(params.Title)
 	l.Description = strings.TrimSpace(params.Description)
@@ -355,6 +369,8 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	l.RenovationScore = params.RenovationScore
 	l.BuildingAgeYears = params.BuildingAgeYears
 	l.AreaSquareMeters = params.AreaSquareMeters
+	l.TravelMinutes = params.TravelMinutes
+	l.TravelMode = strings.TrimSpace(strings.ToLower(params.TravelMode))
 	l.ThumbnailURL = strings.TrimSpace(params.ThumbnailURL)
 	if !params.AvailableFrom.IsZero() {
 		l.AvailableFrom = params.AvailableFrom.UTC()

@@ -236,6 +236,7 @@ func toProtoConversation(conv *scylla.Conversation, hasUnread bool) *pb.Conversa
 		LastMessageAt:       tsOrNil(conv.LastMessageAt),
 		LastMessageId:       lastMessageID,
 		LastMessageSenderId: conv.LastMessageSenderID,
+		LastMessageText:     conv.LastMessageText,
 		HasUnread:           hasUnread,
 	}
 }

@@ -437,6 +437,15 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		address.Region = address.Country
 	}
 
+	travelMinutes := req.TravelMinutes
+	if travelMinutes < 0 {
+		travelMinutes = 0
+	}
+	travelMode := strings.TrimSpace(strings.ToLower(req.TravelMode))
+	if travelMode == "" {
+		travelMode = "car"
+	}
+
 	var rentalTerm domainlistings.RentalTermType
 	if strings.TrimSpace(req.RentalTerm) != "" {
 		value := strings.ToLower(strings.TrimSpace(req.RentalTerm))
@@ -472,6 +481,8 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		RenovationScore:      req.RenovationScore,
 		BuildingAgeYears:     req.BuildingAgeYears,
 		AreaSquareMeters:     req.AreaSquareMeters,
+		TravelMinutes:        travelMinutes,
+		TravelMode:           travelMode,
 		RentalTermType:       rentalTerm,
 		AvailableFrom:        availableFrom,
 		Photos:               cleanStrings(req.Photos),
@@ -547,6 +558,8 @@ type hostListingRequest struct {
 	AvailableFrom        string             `json:"available_from"`
 	Photos               []string           `json:"photos"`
 	RentalTerm           string             `json:"rental_term"`
+	TravelMinutes        float64            `json:"travel_minutes"`
+	TravelMode           string             `json:"travel_mode"`
 }
 
 type hostListingAddress struct {

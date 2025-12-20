@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS %s.conversations (
 	created_at timestamp,
 	last_message_at timestamp,
 	last_message_id timeuuid,
-	last_message_sender_id text
+	last_message_sender_id text,
+	last_message_text text
 );`, cfg.ScyllaKeyspace)
 	if err := session.Query(conversations).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("create conversations table: %w", err)
@@ -105,6 +106,10 @@ CREATE TABLE IF NOT EXISTS %s.conversation_reads (
 	if err := session.Query(reads).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("create conversation_reads table: %w", err)
 	}
+
+	// Make sure new nullable columns exist for rolling upgrades.
+	alterConversation := fmt.Sprintf(`ALTER TABLE %s.conversations ADD IF NOT EXISTS last_message_text text;`, cfg.ScyllaKeyspace)
+	_ = session.Query(alterConversation).WithContext(ctx).Exec()
 	return nil
 }
 
@@ -130,6 +135,7 @@ type Conversation struct {
 	LastMessageAt       time.Time
 	LastMessageID       gocql.UUID
 	LastMessageSenderID string
+	LastMessageText     string
 }
 
 // Message represents a chat message persisted in Scylla.

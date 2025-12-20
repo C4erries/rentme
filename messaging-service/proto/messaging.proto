@@ -15,6 +15,7 @@ message Conversation {
   string last_message_id = 6;
   string last_message_sender_id = 7;
   bool has_unread = 8;
+  string last_message_text = 9;
 }
 
 message Message {
