@@ -26,7 +26,9 @@ type ListingCard struct {
 	GuestsLimit      int                 `json:"guests_limit"`
 	MinNights        int                 `json:"min_nights"`
 	MaxNights        int                 `json:"max_nights"`
+	RateCents        int64               `json:"rate_cents"`
 	NightlyRateCents int64               `json:"nightly_rate_cents"`
+	PriceUnit        string              `json:"price_unit"`
 	Bedrooms         int                 `json:"bedrooms"`
 	Bathrooms        int                 `json:"bathrooms"`
 	AreaSquareMeters float64             `json:"area_sq_m"`
@@ -142,7 +144,9 @@ func MapListingCard(listing *domainlistings.Listing) ListingCard {
 		GuestsLimit:      listing.GuestsLimit,
 		MinNights:        listing.MinNights,
 		MaxNights:        listing.MaxNights,
+		RateCents:        listing.NightlyRateCents,
 		NightlyRateCents: listing.NightlyRateCents,
+		PriceUnit:        priceUnit(listing.RentalTermType),
 		Bedrooms:         listing.Bedrooms,
 		Bathrooms:        listing.Bathrooms,
 		AreaSquareMeters: listing.AreaSquareMeters,
@@ -177,4 +181,11 @@ func resolvePaging(limit, offset, total int) (int, int) {
 		}
 	}
 	return page, totalPages
+}
+
+func priceUnit(term domainlistings.RentalTermType) string {
+	if term == domainlistings.RentalTermLong {
+		return "month"
+	}
+	return "night"
 }

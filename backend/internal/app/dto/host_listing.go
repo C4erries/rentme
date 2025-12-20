@@ -1,4 +1,4 @@
-﻿package dto
+package dto
 
 import (
 	"strings"
@@ -26,6 +26,8 @@ type HostListingSummary struct {
 	Region           string    `json:"region"`
 	Country          string    `json:"country"`
 	NightlyRateCents int64     `json:"nightly_rate_cents"`
+	RateCents        int64     `json:"rate_cents"`
+	PriceUnit        string    `json:"price_unit"`
 	GuestsLimit      int       `json:"guests_limit"`
 	Bedrooms         int       `json:"bedrooms"`
 	Bathrooms        int       `json:"bathrooms"`
@@ -60,6 +62,8 @@ type HostListingDetail struct {
 	Tags                 []string       `json:"tags"`
 	Highlights           []string       `json:"highlights"`
 	NightlyRateCents     int64          `json:"nightly_rate_cents"`
+	RateCents            int64          `json:"rate_cents"`
+	PriceUnit            string         `json:"price_unit"`
 	Bedrooms             int            `json:"bedrooms"`
 	Bathrooms            int            `json:"bathrooms"`
 	Floor                int            `json:"floor"`
@@ -97,6 +101,8 @@ func MapHostListingSummary(listing *domainlistings.Listing) HostListingSummary {
 		Region:           listing.Address.Region,
 		Country:          listing.Address.Country,
 		NightlyRateCents: listing.NightlyRateCents,
+		RateCents:        listing.NightlyRateCents,
+		PriceUnit:        hostPriceUnit(listing.RentalTermType),
 		GuestsLimit:      listing.GuestsLimit,
 		Bedrooms:         listing.Bedrooms,
 		Bathrooms:        listing.Bathrooms,
@@ -145,6 +151,8 @@ func MapHostListingDetail(listing *domainlistings.Listing) HostListingDetail {
 		Tags:                 append([]string(nil), listing.Tags...),
 		Highlights:           append([]string(nil), listing.Highlights...),
 		NightlyRateCents:     listing.NightlyRateCents,
+		RateCents:            listing.NightlyRateCents,
+		PriceUnit:            hostPriceUnit(listing.RentalTermType),
 		Bedrooms:             listing.Bedrooms,
 		Bathrooms:            listing.Bathrooms,
 		Floor:                listing.Floor,
@@ -176,4 +184,11 @@ func toStatus(state domainlistings.ListingState) string {
 	default:
 		return strings.ToLower(string(state))
 	}
+}
+
+func hostPriceUnit(term domainlistings.RentalTermType) string {
+	if term == domainlistings.RentalTermLong {
+		return "month"
+	}
+	return "night"
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -542,6 +543,8 @@ func (a application) loadListingFixtures(ctx context.Context, path string, logge
 		logger.Warn("listing fixtures file empty", "path", path)
 		return nil
 	}
+	// Be tolerant to UTF-8 BOM in fixtures (common when edited on Windows).
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 
 	var fixtures []listingFixture
 	if err := json.Unmarshal(data, &fixtures); err != nil {

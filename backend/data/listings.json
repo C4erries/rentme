@@ -3,7 +3,7 @@
     "id": "listing-demo-1",
     "host": "host-demo",
     "title": "Demo Loft Downtown",
-    "description": "Уютный лофт с высокими потолками и панорамными окнами для дневного света.",
+    "description": "Уютный лофт с высокими потолками и панорамными окнами, много дневного света.",
     "address": {
       "line1": "Main Street 1",
       "line2": "",
@@ -12,27 +12,14 @@
       "lat": 50.0755,
       "lon": 14.4378
     },
-    "amenities": [
-      "wifi",
-      "kitchen",
-      "workspace"
-    ],
+    "amenities": ["wifi", "kitchen", "workspace"],
     "guests_limit": 4,
     "min_nights": 2,
     "max_nights": 30,
-    "house_rules": [
-      "no parties"
-    ],
+    "house_rules": ["no parties"],
     "cancellation_policy_id": "flexible",
-    "tags": [
-      "loft",
-      "city-view"
-    ],
-    "highlights": [
-      "Панорамные окна",
-      "Авторский свет",
-      "Встроенная акустика"
-    ],
+    "tags": ["loft", "city-view"],
+    "highlights": ["Панорамные окна", "Авторский свет", "Встроенная акустика"],
     "nightly_rate_cents": 7800,
     "bedrooms": 1,
     "bathrooms": 1,
@@ -44,13 +31,14 @@
     "thumbnail_url": "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=800&q=80",
     "rating": 4.9,
     "available_from": "2025-11-20T00:00:00Z",
-    "property_type": "loft"
+    "property_type": "loft",
+    "rental_term": "short_term"
   },
   {
     "id": "listing-demo-2",
     "host": "host-nordic",
     "title": "Nordic Atrium",
-    "description": "Скандинавский дуплекс у Петроградки с теплым полом и видом на набережную.",
+    "description": "Скандинавский дуплекс у Петроградки с тёплым полом и видом на набережную.",
     "address": {
       "line1": "Петроградская набережная, 12",
       "line2": "",
@@ -59,28 +47,15 @@
       "lat": 59.9555,
       "lon": 30.3137
     },
-    "amenities": [
-      "wifi",
-      "kitchen",
-      "fireplace",
-      "laundry"
-    ],
+    "amenities": ["wifi", "kitchen", "fireplace", "laundry"],
     "guests_limit": 6,
     "min_nights": 3,
     "max_nights": 45,
-    "house_rules": [
-      "no smoking"
-    ],
+    "house_rules": ["no smoking"],
     "cancellation_policy_id": "standard",
-    "tags": [
-      "family",
-      "river"
-    ],
-    "highlights": [
-      "Внутренний атриум",
-      "Автоматические шторы"
-    ],
-    "nightly_rate_cents": 9200,
+    "tags": ["family", "river"],
+    "highlights": ["Внутренний атриум", "Автоматические шторы"],
+    "nightly_rate_cents": 12000000,
     "bedrooms": 3,
     "bathrooms": 2,
     "floor": 3,
@@ -91,13 +66,14 @@
     "thumbnail_url": "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80",
     "rating": 4.8,
     "available_from": "2025-11-27T00:00:00Z",
-    "property_type": "duplex"
+    "property_type": "duplex",
+    "rental_term": "long_term"
   },
   {
     "id": "listing-demo-3",
     "host": "host-botanical",
     "title": "Botanical Terrace",
-    "description": "Терраса с зимним садом рядом с Аптекарским огородом, идеально для созвонов.",
+    "description": "Зелёная терраса с креслами и мини-оранжереей, много воздуха и света.",
     "address": {
       "line1": "Проспект Мира, 26",
       "line2": "",
@@ -106,27 +82,14 @@
       "lat": 55.7798,
       "lon": 37.631
     },
-    "amenities": [
-      "wifi",
-      "kitchen",
-      "workspace",
-      "projector"
-    ],
+    "amenities": ["wifi", "kitchen", "workspace", "projector"],
     "guests_limit": 3,
     "min_nights": 1,
     "max_nights": 21,
-    "house_rules": [
-      "no parties"
-    ],
+    "house_rules": ["no parties"],
     "cancellation_policy_id": "flexible",
-    "tags": [
-      "balcony",
-      "plants"
-    ],
-    "highlights": [
-      "Тихий двор",
-      "Терраса 20 м²"
-    ],
+    "tags": ["balcony", "plants"],
+    "highlights": ["Терраса с растениями", "20 м² пространства"],
     "nightly_rate_cents": 11200,
     "bedrooms": 1,
     "bathrooms": 1,
@@ -138,43 +101,30 @@
     "thumbnail_url": "https://images.unsplash.com/photo-1430285561322-7808604715df?auto=format&fit=crop&w=800&q=80",
     "rating": 4.95,
     "available_from": "2025-11-22T00:00:00Z",
-    "property_type": "apartment"
+    "property_type": "apartment",
+    "rental_term": "short_term"
   },
   {
     "id": "listing-demo-4",
     "host": "host-townhouse",
     "title": "Riverside Townhouse",
-    "description": "Двухуровневый таунхаус в Нижнем Новгороде с камином и собственной мастерской.",
+    "description": "Таунхаус у реки с панорамными окнами и спальнями на втором этаже, отлично для семьи.",
     "address": {
-      "line1": "Береговая улица, 4",
+      "line1": "Набережная Спорта, 4",
       "line2": "",
       "city": "Nizhny Novgorod",
       "country": "RU",
       "lat": 56.3299,
       "lon": 44.0113
     },
-    "amenities": [
-      "wifi",
-      "parking",
-      "fireplace",
-      "laundry"
-    ],
+    "amenities": ["wifi", "parking", "fireplace", "laundry"],
     "guests_limit": 5,
     "min_nights": 2,
     "max_nights": 60,
-    "house_rules": [
-      "no parties"
-    ],
+    "house_rules": ["no parties"],
     "cancellation_policy_id": "strict",
-    "tags": [
-      "townhouse",
-      "family"
-    ],
-    "highlights": [
-      "Камин",
-      "Гардеробная",
-      "Двор с садом"
-    ],
+    "tags": ["townhouse", "family"],
+    "highlights": ["Вид на набережную", "Приватный двор", "Тёплый гараж"],
     "nightly_rate_cents": 6800,
     "bedrooms": 2,
     "bathrooms": 2,
@@ -186,41 +136,30 @@
     "thumbnail_url": "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80",
     "rating": 4.7,
     "available_from": "2025-12-01T00:00:00Z",
-    "property_type": "townhouse"
+    "property_type": "townhouse",
+    "rental_term": "short_term"
   },
   {
     "id": "listing-demo-5",
     "host": "host-lakeside",
     "title": "Lakeside Capsule",
-    "description": "Капсульный дом в Карелии с видом на озеро и сауной внутри корпуса.",
+    "description": "Мини-дом у озера с панорамой на воду и сауной во дворе.",
     "address": {
-      "line1": "Онежское озеро",
+      "line1": "Набережная Лесная",
       "line2": "",
       "city": "Petrozavodsk",
       "country": "RU",
       "lat": 61.785,
       "lon": 34.3469
     },
-    "amenities": [
-      "wifi",
-      "sauna",
-      "parking"
-    ],
+    "amenities": ["wifi", "sauna", "parking"],
     "guests_limit": 2,
     "min_nights": 2,
     "max_nights": 15,
-    "house_rules": [
-      "no smoking"
-    ],
+    "house_rules": ["no smoking"],
     "cancellation_policy_id": "flexible",
-    "tags": [
-      "nature",
-      "spa"
-    ],
-    "highlights": [
-      "Финская сауна",
-      "Панорама на озеро"
-    ],
+    "tags": ["nature", "spa"],
+    "highlights": ["Вид на озеро", "Сап-серфинг рядом"],
     "nightly_rate_cents": 5400,
     "bedrooms": 1,
     "bathrooms": 1,
@@ -232,13 +171,14 @@
     "thumbnail_url": "https://images.unsplash.com/photo-1464146072230-91cabc968266?auto=format&fit=crop&w=800&q=80",
     "rating": 4.85,
     "available_from": "2025-12-05T00:00:00Z",
-    "property_type": "cabin"
+    "property_type": "cabin",
+    "rental_term": "short_term"
   },
   {
     "id": "listing-demo-6",
     "host": "host-lakeside",
     "title": "Lakeside Retreat",
-    "description": "??? ? ????? ? ???????? ? ???????, ???????? ??? ???????.",
+    "description": "Дом у озера с террасой и камином, идеально для уикенда.",
     "address": {
       "line1": "Lakeside Road 15",
       "line2": "",
@@ -247,27 +187,14 @@
       "lat": 47.3769,
       "lon": 8.5417
     },
-    "amenities": [
-      "wifi",
-      "fireplace",
-      "parking",
-      "sauna"
-    ],
+    "amenities": ["wifi", "fireplace", "parking", "sauna"],
     "guests_limit": 5,
     "min_nights": 2,
     "max_nights": 21,
-    "house_rules": [
-      "no parties"
-    ],
+    "house_rules": ["no parties"],
     "cancellation_policy_id": "moderate",
-    "tags": [
-      "lake",
-      "nature"
-    ],
-    "highlights": [
-      "??????? ?? ????",
-      "???????? ?????"
-    ],
+    "tags": ["lake", "nature"],
+    "highlights": ["Терраса на воде", "Дровяная сауна"],
     "nightly_rate_cents": 12500,
     "bedrooms": 3,
     "bathrooms": 2,
@@ -286,7 +213,7 @@
     "id": "listing-demo-7",
     "host": "host-townhouse",
     "title": "Townhouse Garden",
-    "description": "????? ???????? ? ????????? ????? ? ????????? ?? ?????? ?????.",
+    "description": "Тихий таунхаус с небольшим садом и спальнями на втором этаже.",
     "address": {
       "line1": "Green Street 7",
       "line2": "",
@@ -295,28 +222,15 @@
       "lat": 54.6872,
       "lon": 25.2797
     },
-    "amenities": [
-      "wifi",
-      "kitchen",
-      "laundry",
-      "parking"
-    ],
+    "amenities": ["wifi", "kitchen", "laundry", "parking"],
     "guests_limit": 5,
     "min_nights": 7,
     "max_nights": 90,
-    "house_rules": [
-      "no smoking"
-    ],
+    "house_rules": ["no smoking"],
     "cancellation_policy_id": "standard",
-    "tags": [
-      "family",
-      "garden"
-    ],
-    "highlights": [
-      "?????? ?????????? ????",
-      "????????? ???????"
-    ],
-    "nightly_rate_cents": 9800,
+    "tags": ["family", "garden"],
+    "highlights": ["Уютный внутренний двор", "Отдельный кабинет"],
+    "nightly_rate_cents": 9800000,
     "bedrooms": 2,
     "bathrooms": 2,
     "floor": 1,
@@ -334,7 +248,7 @@
     "id": "listing-demo-8",
     "host": "host-botanical",
     "title": "Botanical Loft",
-    "description": "???? ? ??????? ????? ? ???????? ?????? ? ?????? ?????.",
+    "description": "Лофт в зелёном стиле с большими окнами и зимним садом.",
     "address": {
       "line1": "Botanic Ave 3",
       "line2": "",
@@ -343,27 +257,14 @@
       "lat": 56.9496,
       "lon": 24.1052
     },
-    "amenities": [
-      "wifi",
-      "workspace",
-      "kitchen",
-      "balcony"
-    ],
+    "amenities": ["wifi", "workspace", "kitchen", "balcony"],
     "guests_limit": 3,
     "min_nights": 2,
     "max_nights": 30,
-    "house_rules": [
-      "no parties"
-    ],
+    "house_rules": ["no parties"],
     "cancellation_policy_id": "flexible",
-    "tags": [
-      "plants",
-      "design"
-    ],
-    "highlights": [
-      "?????? ???",
-      "??????????? ????"
-    ],
+    "tags": ["plants", "design"],
+    "highlights": ["Зимний сад", "Французские окна"],
     "nightly_rate_cents": 7200,
     "bedrooms": 1,
     "bathrooms": 1,
@@ -382,7 +283,7 @@
     "id": "listing-demo-9",
     "host": "host-demo",
     "title": "City Studio",
-    "description": "?????? ? ?????? ????? ? ?????, ? ??????? ????? ? ??????? ?????.",
+    "description": "Студия в центре рядом с метро, с рабочей зоной и большим окном.",
     "address": {
       "line1": "Central Ave 9",
       "line2": "",
@@ -391,26 +292,14 @@
       "lat": 52.2297,
       "lon": 21.0122
     },
-    "amenities": [
-      "wifi",
-      "workspace",
-      "kitchen"
-    ],
+    "amenities": ["wifi", "workspace", "kitchen"],
     "guests_limit": 2,
     "min_nights": 1,
     "max_nights": 20,
-    "house_rules": [
-      "no smoking"
-    ],
+    "house_rules": ["no smoking"],
     "cancellation_policy_id": "flexible",
-    "tags": [
-      "city",
-      "metro"
-    ],
-    "highlights": [
-      "??????? ????",
-      "??????? ?????"
-    ],
+    "tags": ["city", "metro"],
+    "highlights": ["Большое окно", "Рабочее место"],
     "nightly_rate_cents": 6100,
     "bedrooms": 1,
     "bathrooms": 1,
