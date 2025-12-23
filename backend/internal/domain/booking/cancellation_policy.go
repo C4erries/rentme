@@ -41,7 +41,8 @@ func percentOf(total money.Money, percent int) money.Money {
 	if percent <= 0 {
 		return money.Money{Amount: 0, Currency: total.Currency}
 	}
-	amount := total.Amount * int64(percent) / 100
+	const percentBase = int64(100)
+	amount := total.Amount * int64(percent) / percentBase
 	return money.Money{Amount: amount, Currency: total.Currency}
 }
 

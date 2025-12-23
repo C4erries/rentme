@@ -15,7 +15,7 @@ var (
 	ErrInvalidState    = errors.New("listings: invalid state transition")
 	ErrAddressRequired = errors.New("listings: address must be provided when activating")
 	ErrTitleRequired   = errors.New("listings: title is required")
-	ErrNightlyRate     = errors.New("listings: nightly rate must be non-negative")
+	ErrRate            = errors.New("listings: rate must be non-negative")
 	ErrInvalidFloor    = errors.New("listings: floor must be >= 0")
 	ErrFloorsTotal     = errors.New("listings: floors total must be >= floor")
 	ErrRenovationScore = errors.New("listings: renovation score must be between 0 and 10")
@@ -75,7 +75,7 @@ type Listing struct {
 	State                ListingState
 	Tags                 []string
 	Highlights           []string
-	NightlyRateCents     int64
+	RateRub              int64
 	Bedrooms             int
 	Bathrooms            int
 	Floor                int
@@ -117,7 +117,7 @@ type CreateListingParams struct {
 	CancellationPolicyID string
 	Tags                 []string
 	Highlights           []string
-	NightlyRateCents     int64
+	RateRub              int64
 	Bedrooms             int
 	Bathrooms            int
 	Floor                int
@@ -154,8 +154,8 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 	if params.MaxNights > 0 && params.MinNights > params.MaxNights {
 		return nil, ErrNightsRange
 	}
-	if params.NightlyRateCents < 0 {
-		return nil, ErrNightlyRate
+	if params.RateRub < 0 {
+		return nil, ErrRate
 	}
 	if params.Floor < 0 {
 		return nil, ErrInvalidFloor
@@ -200,7 +200,7 @@ func NewListing(params CreateListingParams) (*Listing, error) {
 		State:                ListingDraft,
 		Tags:                 append([]string(nil), params.Tags...),
 		Highlights:           append([]string(nil), params.Highlights...),
-		NightlyRateCents:     params.NightlyRateCents,
+		RateRub:              params.RateRub,
 		Bedrooms:             params.Bedrooms,
 		Bathrooms:            params.Bathrooms,
 		Floor:                params.Floor,
@@ -288,7 +288,7 @@ type UpdateListingParams struct {
 	GuestsLimit          int
 	MinNights            int
 	MaxNights            int
-	NightlyRateCents     int64
+	RateRub              int64
 	Bedrooms             int
 	Bathrooms            int
 	Floor                int
@@ -323,8 +323,8 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	if params.MaxNights > 0 && params.MinNights > params.MaxNights {
 		return ErrNightsRange
 	}
-	if params.NightlyRateCents < 0 {
-		return ErrNightlyRate
+	if params.RateRub < 0 {
+		return ErrRate
 	}
 	if params.Floor < 0 {
 		return ErrInvalidFloor
@@ -361,7 +361,7 @@ func (l *Listing) UpdateAttributes(params UpdateListingParams) error {
 	l.GuestsLimit = params.GuestsLimit
 	l.MinNights = params.MinNights
 	l.MaxNights = params.MaxNights
-	l.NightlyRateCents = params.NightlyRateCents
+	l.RateRub = params.RateRub
 	l.Bedrooms = params.Bedrooms
 	l.Bathrooms = params.Bathrooms
 	l.Floor = params.Floor

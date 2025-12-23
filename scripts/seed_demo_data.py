@@ -93,6 +93,7 @@ def generate_listing(term: str, host_id: str, idx: int) -> dict:
         price = max(1800, min(price, 20000))
         min_nights = 1
         max_nights = random.choice([7, 14, 21])
+        price_unit = "night"
     else:
         price = base_price + rooms * 4200 + total_area * 230 + renovation * 180 - building_age * 60
         price += 1500 if way == "walk" else 0
@@ -100,6 +101,7 @@ def generate_listing(term: str, host_id: str, idx: int) -> dict:
         price = max(25000, min(price, 220000))
         min_nights = 14
         max_nights = random.choice([45, 90, 180])
+        price_unit = "month"
 
     available_from = datetime.utcnow() + timedelta(days=random.randint(0, 30))
     listing_id = f"{term}-{idx}-{_random_suffix(4)}"
@@ -130,7 +132,8 @@ def generate_listing(term: str, host_id: str, idx: int) -> dict:
         "cancellation_policy_id": random.choice(["flexible", "standard", "strict"]),
         "tags": random.sample(["family", "city", "nature", "river", "view", "business"], k=2),
         "highlights": ["Generated demo listing"],
-        "nightly_rate_cents": int(price),
+        "rate_rub": int(price),
+        "price_unit": price_unit,
         "bedrooms": rooms,
         "bathrooms": random.choice([1, 1, 2]),
         "floor": storey,

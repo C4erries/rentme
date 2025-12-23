@@ -44,7 +44,7 @@ Rentme — учебный маркетплейс аренды жилья (ана
 | Conversation/Message | Диалог/сообщение в чате |
 | `short_term` | Посуточная аренда (тариф за ночь) |
 | `long_term` | Долгосрочная аренда (тариф за месяц) |
-| `rate_cents` | Стоимость в копейках (за ночь/месяц в зависимости от `price_unit`) |
+| `rate_rub` | Стоимость в рублях (за ночь/месяц в зависимости от `price_unit`) |
 | `price_unit` | Единица тарифа: `night` или `month` |
 
 ### 1.2. Цели изменений (доработок) системы
@@ -344,7 +344,7 @@ S3 (MinIO) для фото:
   - параметры: `guests_limit`, `bedrooms`, `bathrooms`, `area_sq_m`;
   - дом: `floor`, `floors_total`, `renovation_score (0..10)`, `building_age_years`;
   - медиа: `photo_urls[]`, `thumbnail_url`;
-  - цена: `rate_cents`, `price_unit` (`night`/`month`).
+  - цена: `rate_rub`, `price_unit` (`night`/`month`).
 
 #### Booking (Бронирование)
 - Хранилище: MongoDB (`bookings`).

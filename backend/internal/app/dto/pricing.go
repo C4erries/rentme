@@ -15,8 +15,8 @@ type ListingDateRange struct {
 
 type HostListingPriceSuggestion struct {
 	ListingID             string           `json:"listing_id"`
-	RecommendedPriceCents int64            `json:"recommended_price_cents"`
-	CurrentPriceCents     int64            `json:"current_price_cents"`
+	RecommendedPriceRub   int64            `json:"recommended_price_rub"`
+	CurrentPriceRub       int64            `json:"current_price_rub"`
 	PriceLevel            string           `json:"price_level"`
 	PriceGapPercent       float64          `json:"price_gap_percent"`
 	Message               string           `json:"message"`

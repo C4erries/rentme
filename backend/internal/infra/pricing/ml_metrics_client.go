@@ -40,7 +40,11 @@ func (c *MetricsClient) Fetch(ctx context.Context) (*MLMetrics, error) {
 		return nil, errors.New("ml metrics: endpoint not configured")
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	timeout := 10 * time.Second
+	if c.Client.Timeout > 0 && c.Client.Timeout < timeout {
+		timeout = c.Client.Timeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Endpoint, nil)
@@ -49,11 +53,12 @@ func (c *MetricsClient) Fetch(ctx context.Context) (*MLMetrics, error) {
 	}
 	resp, err := c.Client.Do(req)
 	if err != nil {
+		origErr := err
 		var netErr net.Error
-		if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
-			err = fmt.Errorf("ml metrics: pricing service timeout (%s)", c.Endpoint)
+		if errors.Is(origErr, context.DeadlineExceeded) || (errors.As(origErr, &netErr) && netErr.Timeout()) {
+			err = fmt.Errorf("ml metrics: pricing service timeout (%s): %w", c.Endpoint, origErr)
 		} else {
-			err = fmt.Errorf("ml metrics: pricing service unavailable (%s)", c.Endpoint)
+			err = fmt.Errorf("ml metrics: pricing service unavailable (%s): %w", c.Endpoint, origErr)
 		}
 		c.logError("metrics request failed", err)
 		return nil, err

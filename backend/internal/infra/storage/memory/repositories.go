@@ -94,10 +94,10 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 		if opts.MinGuests > 0 && listing.GuestsLimit < opts.MinGuests {
 			continue
 		}
-		if opts.PriceMinCents > 0 && listing.NightlyRateCents < opts.PriceMinCents {
+		if opts.PriceMinRub > 0 && listing.RateRub < opts.PriceMinRub {
 			continue
 		}
-		if opts.PriceMaxCents > 0 && listing.NightlyRateCents > opts.PriceMaxCents {
+		if opts.PriceMaxRub > 0 && listing.RateRub > opts.PriceMaxRub {
 			continue
 		}
 		if !opts.CheckIn.IsZero() && listing.AvailableFrom.After(opts.CheckIn) {
@@ -121,30 +121,30 @@ func (r *ListingRepository) Search(ctx context.Context, params domainlistings.Se
 	sort.Slice(matches, func(i, j int) bool {
 		switch opts.Sort {
 		case domainlistings.SortByPriceDesc:
-			if matches[i].NightlyRateCents == matches[j].NightlyRateCents {
+			if matches[i].RateRub == matches[j].RateRub {
 				return matches[i].Rating > matches[j].Rating
 			}
-			return matches[i].NightlyRateCents > matches[j].NightlyRateCents
+			return matches[i].RateRub > matches[j].RateRub
 		case domainlistings.SortByRating:
 			if matches[i].Rating == matches[j].Rating {
-				return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+				return matches[i].RateRub < matches[j].RateRub
 			}
 			return matches[i].Rating > matches[j].Rating
 		case domainlistings.SortByNewest:
 			if matches[i].AvailableFrom.Equal(matches[j].AvailableFrom) {
-				return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+				return matches[i].RateRub < matches[j].RateRub
 			}
 			return matches[i].AvailableFrom.After(matches[j].AvailableFrom)
 		case domainlistings.SortByUpdated:
 			if matches[i].UpdatedAt.Equal(matches[j].UpdatedAt) {
-				return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+				return matches[i].RateRub < matches[j].RateRub
 			}
 			return matches[i].UpdatedAt.After(matches[j].UpdatedAt)
 		default:
-			if matches[i].NightlyRateCents == matches[j].NightlyRateCents {
+			if matches[i].RateRub == matches[j].RateRub {
 				return matches[i].Rating > matches[j].Rating
 			}
-			return matches[i].NightlyRateCents < matches[j].NightlyRateCents
+			return matches[i].RateRub < matches[j].RateRub
 		}
 	})
 

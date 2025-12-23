@@ -10,6 +10,8 @@ services:
       MONGO_DB: rentals
       PRICING_MODE: ml
       ML_PRICING_URL: "http://mlpricing:8000/predict"
+      # Optional JSON clamps for ML recommendations (RUB).
+      # ML_PRICE_CLAMPS: '{"defaults":{"short_term":{"min_rub":3000,"max_rub":30000},"long_term":{"min_rub":25000,"max_rub":250000}},"cities":{"Москва":{"short_term":{"min_rub":3000,"max_rub":35000},"long_term":{"min_rub":25000,"max_rub":300000}},"Краснодар":{"short_term":{"min_rub":2000,"max_rub":25000},"long_term":{"min_rub":20000,"max_rub":200000}}}}'
       MESSAGING_GRPC_ADDR: "messaging-service:9000"
       # Local-only S3 storage for listing photos (MinIO).
       S3_ENDPOINT: "http://minio:9000"

@@ -20,6 +20,7 @@ type Config struct {
 	RetryBackoff       []time.Duration
 	PricingMode        string
 	MLPricingURL       string
+	MLPriceClamps      string
 	S3Endpoint         string
 	S3PublicEndpoint   string
 	S3AccessKey        string
@@ -41,6 +42,7 @@ func Load() (Config, error) {
 		KafkaTopicPrefix:  getEnv("KAFKA_TOPIC_PREFIX", ""),
 		PricingMode:       strings.ToLower(getEnv("PRICING_MODE", "memory")),
 		MLPricingURL:      getEnv("ML_PRICING_URL", "http://localhost:8000/predict"),
+		MLPriceClamps:     os.Getenv("ML_PRICE_CLAMPS"),
 		S3Endpoint:        getEnv("S3_ENDPOINT", "http://localhost:9000"),
 		S3PublicEndpoint:  getEnv("S3_PUBLIC_ENDPOINT", ""),
 		S3AccessKey:       getEnv("S3_ACCESS_KEY", "minioadmin"),

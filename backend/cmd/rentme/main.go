@@ -312,6 +312,7 @@ func resolvePricingCalculator(cfg config.Config, httpClient *http.Client, listin
 			Endpoint: endpoint,
 			Listings: listingsRepo,
 			Logger:   logger,
+			Clamps:   mlpricing.LoadClampConfig(cfg.MLPriceClamps, logger),
 		}
 	default:
 		return memory.NewPricingEngine()
@@ -355,8 +356,9 @@ func buildMLMetricsClient(cfg config.Config, httpClient *http.Client, logger *sl
 	if endpoint == "" {
 		return nil
 	}
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 5 * time.Second}
+	const metricsTimeout = 15 * time.Second
+	if httpClient == nil || httpClient.Timeout < metricsTimeout {
+		httpClient = &http.Client{Timeout: metricsTimeout}
 	}
 	return &mlpricing.MetricsClient{
 		Endpoint: endpoint,
@@ -585,7 +587,7 @@ func (a application) loadListingFixtures(ctx context.Context, path string, logge
 			CancellationPolicyID: fx.CancellationPolicyID,
 			Tags:                 append([]string(nil), fx.Tags...),
 			Highlights:           append([]string(nil), fx.Highlights...),
-			NightlyRateCents:     fx.NightlyRateCents,
+			RateRub:              fx.RateRub,
 			Bedrooms:             fx.Bedrooms,
 			Bathrooms:            fx.Bathrooms,
 			Floor:                fx.Floor,
@@ -637,7 +639,8 @@ type listingFixture struct {
 	CancellationPolicyID string         `json:"cancellation_policy_id"`
 	Tags                 []string       `json:"tags"`
 	Highlights           []string       `json:"highlights"`
-	NightlyRateCents     int64          `json:"nightly_rate_cents"`
+	RateRub              int64          `json:"rate_rub"`
+	PriceUnit            string         `json:"price_unit"`
 	Bedrooms             int            `json:"bedrooms"`
 	Bathrooms            int            `json:"bathrooms"`
 	Floor                int            `json:"floor"`

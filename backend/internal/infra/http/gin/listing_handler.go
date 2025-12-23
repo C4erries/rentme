@@ -1,7 +1,6 @@
 package ginserver
 
 import (
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,13 +50,15 @@ func (h ListingHandler) Catalog(c *gin.Context) {
 	if offset == 0 && page > 1 {
 		offset = (page - 1) * limit
 	}
-	priceMin := parseInt64(c.Query("price_min_cents"))
-	priceMax := parseInt64(c.Query("price_max_cents"))
-	if priceMin == 0 {
-		priceMin = parseMajorCurrencyToCents(c.Query("price_min"))
+	priceMinRaw := c.Query("price_min_rub")
+	priceMaxRaw := c.Query("price_max_rub")
+	priceMin := parseInt64(priceMinRaw)
+	priceMax := parseInt64(priceMaxRaw)
+	if strings.TrimSpace(priceMinRaw) == "" {
+		priceMin = parseRubleAmount(c.Query("price_min"))
 	}
-	if priceMax == 0 {
-		priceMax = parseMajorCurrencyToCents(c.Query("price_max"))
+	if strings.TrimSpace(priceMaxRaw) == "" {
+		priceMax = parseRubleAmount(c.Query("price_max"))
 	}
 	propertyTypes := mergeSlices(splitCSV(c.Query("type")), splitCSV(c.Query("types")))
 	rentalTerms := mergeSlices(splitCSV(c.Query("rental_term")), splitCSV(c.Query("rental_terms")))
@@ -70,8 +71,8 @@ func (h ListingHandler) Catalog(c *gin.Context) {
 		Tags:          splitCSV(c.Query("tags")),
 		Amenities:     splitCSV(c.Query("amenities")),
 		MinGuests:     guests,
-		PriceMinCents: priceMin,
-		PriceMaxCents: priceMax,
+		PriceMinRub:   priceMin,
+		PriceMaxRub:   priceMax,
 		PropertyTypes: propertyTypes,
 		RentalTerms:   rentalTerms,
 		Limit:         limit,
@@ -196,7 +197,7 @@ func parseInt64(raw string) int64 {
 	return value
 }
 
-func parseMajorCurrencyToCents(raw string) int64 {
+func parseRubleAmount(raw string) int64 {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return 0
@@ -205,7 +206,10 @@ func parseMajorCurrencyToCents(raw string) int64 {
 	if err != nil {
 		return 0
 	}
-	return int64(math.Round(value * 100))
+	if value < 0 {
+		return 0
+	}
+	return int64(value + 0.5)
 }
 
 func mergeSlices(parts ...[]string) []string {

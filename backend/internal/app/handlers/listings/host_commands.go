@@ -36,7 +36,7 @@ type HostListingPayload struct {
 	GuestsLimit          int
 	MinNights            int
 	MaxNights            int
-	NightlyRateCents     int64
+	RateRub              int64
 	Bedrooms             int
 	Bathrooms            int
 	Floor                int
@@ -87,7 +87,7 @@ func (h *CreateHostListingHandler) Handle(ctx context.Context, cmd CreateHostLis
 		CancellationPolicyID: cmd.Payload.CancellationPolicyID,
 		Tags:                 cmd.Payload.Tags,
 		Highlights:           cmd.Payload.Highlights,
-		NightlyRateCents:     cmd.Payload.NightlyRateCents,
+		RateRub:              cmd.Payload.RateRub,
 		Bedrooms:             cmd.Payload.Bedrooms,
 		Bathrooms:            cmd.Payload.Bathrooms,
 		Floor:                cmd.Payload.Floor,
@@ -165,7 +165,7 @@ func (h *UpdateHostListingHandler) Handle(ctx context.Context, cmd UpdateHostLis
 		GuestsLimit:          cmd.Payload.GuestsLimit,
 		MinNights:            cmd.Payload.MinNights,
 		MaxNights:            cmd.Payload.MaxNights,
-		NightlyRateCents:     cmd.Payload.NightlyRateCents,
+		RateRub:              cmd.Payload.RateRub,
 		Bedrooms:             cmd.Payload.Bedrooms,
 		Bathrooms:            cmd.Payload.Bathrooms,
 		Floor:                cmd.Payload.Floor,

@@ -30,8 +30,8 @@ type SearchParams struct {
 	Tags          []string
 	Amenities     []string
 	MinGuests     int
-	PriceMinCents int64
-	PriceMaxCents int64
+	PriceMinRub   int64
+	PriceMaxRub   int64
 	PropertyTypes []string
 	RentalTerms   []RentalTermType
 	CheckIn       time.Time
@@ -61,11 +61,11 @@ func (p SearchParams) Normalized() SearchParams {
 	if normalized.MinGuests < 0 {
 		normalized.MinGuests = 0
 	}
-	if normalized.PriceMinCents < 0 {
-		normalized.PriceMinCents = 0
+	if normalized.PriceMinRub < 0 {
+		normalized.PriceMinRub = 0
 	}
-	if normalized.PriceMaxCents > 0 && normalized.PriceMaxCents < normalized.PriceMinCents {
-		normalized.PriceMaxCents = 0
+	if normalized.PriceMaxRub > 0 && normalized.PriceMaxRub < normalized.PriceMinRub {
+		normalized.PriceMaxRub = 0
 	}
 	if normalized.Limit <= 0 {
 		normalized.Limit = defaultSearchLimit

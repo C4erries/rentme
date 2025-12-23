@@ -77,9 +77,9 @@ Backend реализован как модульный монолит:
 - `CancellationPolicyID`
 
 Цены и рейтинг:
-- `NightlyRateCents` — базовая ставка (используется и как основа для long‑term).
-- возможно, позже — отдельное поле для месячной цены.
-- `Rating` — агрегированный рейтинг из отзывов.
+- `RateRub` — базовая ставка в рублях.
+- `PriceUnit` — единица тарифа: `night` (для `short_term`) или `month` (для `long_term`).
+- `Rating` - агрегированный рейтинг из отзывов.
 
 Медиа и состояние:
 - `ThumbnailURL`
@@ -296,7 +296,7 @@ id,city,price,minutes,way,rooms,total_area,storey,storeys,renovation,building_ag
 - `storeys` ↔ `Listing.FloorsTotal`
 - `renovation` ↔ `Listing.RenovationScore`
 - `building_age_years` ↔ `Listing.BuildingAgeYears`
-- `price` ↔ целевая стоимость (как правило, трактуемая как `NightlyRateCents` либо месячная цена после конверсии)
+- `price` ↔ целевая стоимость (в рублях; как правило, трактуемая как `RateRub`)
 - `minutes`, `way` ↔ производные признаки (время и способ добирания до центра), которые должны вычисляться по геоданным.
 
 Разделение short/long:
@@ -307,4 +307,3 @@ id,city,price,minutes,way,rooms,total_area,storey,storeys,renovation,building_ag
   - передаёт `rental_term`;
   - `MLPricingEngine` выбирает соответствующую модель/endpoint;
   - UI может показывать рекомендованную цену и для посуточной, и для долгосрочной аренды.
-

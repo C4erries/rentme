@@ -26,8 +26,7 @@ type ListingCard struct {
 	GuestsLimit      int                 `json:"guests_limit"`
 	MinNights        int                 `json:"min_nights"`
 	MaxNights        int                 `json:"max_nights"`
-	RateCents        int64               `json:"rate_cents"`
-	NightlyRateCents int64               `json:"nightly_rate_cents"`
+	RateRub          int64               `json:"rate_rub"`
 	PriceUnit        string              `json:"price_unit"`
 	Bedrooms         int                 `json:"bedrooms"`
 	Bathrooms        int                 `json:"bathrooms"`
@@ -62,8 +61,8 @@ type CatalogFilters struct {
 	Tags          []string `json:"tags"`
 	Amenities     []string `json:"amenities"`
 	MinGuests     int      `json:"min_guests"`
-	PriceMinCents int64    `json:"price_min_cents"`
-	PriceMaxCents int64    `json:"price_max_cents"`
+	PriceMinRub   int64    `json:"price_min_rub"`
+	PriceMaxRub   int64    `json:"price_max_rub"`
 	PropertyTypes []string `json:"property_types"`
 	CheckIn       string   `json:"check_in"`
 	CheckOut      string   `json:"check_out"`
@@ -109,8 +108,8 @@ func MapCatalog(result domainlistings.SearchResult, params domainlistings.Search
 			Tags:          append([]string(nil), normalized.Tags...),
 			Amenities:     append([]string(nil), normalized.Amenities...),
 			MinGuests:     normalized.MinGuests,
-			PriceMinCents: normalized.PriceMinCents,
-			PriceMaxCents: normalized.PriceMaxCents,
+			PriceMinRub:   normalized.PriceMinRub,
+			PriceMaxRub:   normalized.PriceMaxRub,
 			PropertyTypes: append([]string(nil), normalized.PropertyTypes...),
 			CheckIn:       formatDate(normalized.CheckIn),
 			CheckOut:      formatDate(normalized.CheckOut),
@@ -144,8 +143,7 @@ func MapListingCard(listing *domainlistings.Listing) ListingCard {
 		GuestsLimit:      listing.GuestsLimit,
 		MinNights:        listing.MinNights,
 		MaxNights:        listing.MaxNights,
-		RateCents:        listing.NightlyRateCents,
-		NightlyRateCents: listing.NightlyRateCents,
+		RateRub:          listing.RateRub,
 		PriceUnit:        priceUnit(listing.RentalTermType),
 		Bedrooms:         listing.Bedrooms,
 		Bathrooms:        listing.Bathrooms,

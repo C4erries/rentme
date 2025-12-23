@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math"
 	"net/http"
 	"path"
 	"strings"
@@ -419,10 +418,7 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		}
 	}
 
-	rate := req.NightlyRateCents
-	if rate == 0 && req.NightlyRate > 0 {
-		rate = int64(math.Round(req.NightlyRate * 100))
-	}
+	rate := req.RateRub
 
 	address := domainlistings.Address{
 		Line1:   strings.TrimSpace(req.Address.Line1),
@@ -473,7 +469,7 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 		GuestsLimit:          req.GuestsLimit,
 		MinNights:            req.MinNights,
 		MaxNights:            req.MaxNights,
-		NightlyRateCents:     rate,
+		RateRub:              rate,
 		Bedrooms:             req.Bedrooms,
 		Bathrooms:            req.Bathrooms,
 		Floor:                req.Floor,
@@ -518,7 +514,7 @@ func isValidationError(err error) bool {
 	case errors.Is(err, domainlistings.ErrTitleRequired),
 		errors.Is(err, domainlistings.ErrGuestsLimit),
 		errors.Is(err, domainlistings.ErrNightsRange),
-		errors.Is(err, domainlistings.ErrNightlyRate),
+		errors.Is(err, domainlistings.ErrRate),
 		errors.Is(err, domainlistings.ErrInvalidFloor),
 		errors.Is(err, domainlistings.ErrFloorsTotal),
 		errors.Is(err, domainlistings.ErrRenovationScore),
@@ -546,8 +542,7 @@ type hostListingRequest struct {
 	GuestsLimit          int                `json:"guests_limit"`
 	MinNights            int                `json:"min_nights"`
 	MaxNights            int                `json:"max_nights"`
-	NightlyRateCents     int64              `json:"nightly_rate_cents"`
-	NightlyRate          float64            `json:"nightly_rate"`
+	RateRub              int64              `json:"rate_rub"`
 	Bedrooms             int                `json:"bedrooms"`
 	Bathrooms            int                `json:"bathrooms"`
 	Floor                int                `json:"floor"`

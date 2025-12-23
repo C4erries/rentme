@@ -25,6 +25,7 @@ type MLPricingEngine struct {
 	Endpoint string
 	Listings domainlistings.ListingRepository
 	Logger   *slog.Logger
+	Clamps   ClampConfig
 }
 
 type mlPredictRequest struct {
@@ -92,7 +93,7 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 	}
 	reqPayload := mlPredictRequest{
 		ListingID:        string(listing.ID),
-		City:             listing.Address.City,
+		City:             NormalizeCity(listing.Address.City),
 		Minutes:          travelMinutes,
 		Way:              travelMode,
 		Rooms:            listing.Bedrooms,
@@ -101,7 +102,7 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 		Storeys:          listing.FloorsTotal,
 		Renovation:       listing.RenovationScore,
 		BuildingAgeYears: listing.BuildingAgeYears,
-		CurrentPrice:     float64(listing.NightlyRateCents),
+		CurrentPrice:     float64(listing.RateRub),
 		RentalTerm:       string(rentalTerm),
 	}
 
@@ -136,7 +137,10 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 		return zero, err
 	}
 
-	recommended := int64(math.Round(mlResp.RecommendedPrice))
+	cityRaw := listing.Address.City
+	cityNormalized := NormalizeCity(cityRaw)
+	recommendedRaw := int64(math.Round(mlResp.RecommendedPrice))
+	recommendedFinal, clampMin, clampMax, clamped := applyClamps(recommendedRaw, e.clamps(), cityNormalized, rentalTerm)
 	nights := nightsBetween(input.Range)
 	if nights < 1 {
 		nights = 1
@@ -144,10 +148,25 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 
 	breakdown := domainpricing.PriceBreakdown{
 		Nights:  nights,
-		Nightly: money.Must(recommended, "USD"),
+		Nightly: money.Must(recommendedFinal, "RUB"),
 	}
 	if err := breakdown.RecalculateTotal(); err != nil {
 		return zero, err
+	}
+
+	if e.Logger != nil {
+		e.Logger.Info(
+			"ml price post-processed",
+			"listing_id", listing.ID,
+			"city_raw", cityRaw,
+			"city_normalized", cityNormalized,
+			"rental_term", rentalTerm,
+			"ml_price_raw", recommendedRaw,
+			"ml_price_final", recommendedFinal,
+			"clamped", clamped,
+			"clamp_min", clampMin,
+			"clamp_max", clampMax,
+		)
 	}
 	return breakdown, nil
 }
@@ -167,3 +186,13 @@ func nightsBetween(dr domainrange.DateRange) int {
 }
 
 var _ domainpricing.Calculator = (*MLPricingEngine)(nil)
+
+func (e *MLPricingEngine) clamps() ClampConfig {
+	if e == nil {
+		return DefaultClampConfig()
+	}
+	if e.Clamps.Defaults == nil && e.Clamps.Cities == nil {
+		return DefaultClampConfig()
+	}
+	return e.Clamps
+}

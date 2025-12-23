@@ -25,8 +25,7 @@ type HostListingSummary struct {
 	City             string    `json:"city"`
 	Region           string    `json:"region"`
 	Country          string    `json:"country"`
-	NightlyRateCents int64     `json:"nightly_rate_cents"`
-	RateCents        int64     `json:"rate_cents"`
+	RateRub          int64     `json:"rate_rub"`
 	PriceUnit        string    `json:"price_unit"`
 	GuestsLimit      int       `json:"guests_limit"`
 	Bedrooms         int       `json:"bedrooms"`
@@ -61,8 +60,7 @@ type HostListingDetail struct {
 	State                string         `json:"state"`
 	Tags                 []string       `json:"tags"`
 	Highlights           []string       `json:"highlights"`
-	NightlyRateCents     int64          `json:"nightly_rate_cents"`
-	RateCents            int64          `json:"rate_cents"`
+	RateRub              int64          `json:"rate_rub"`
 	PriceUnit            string         `json:"price_unit"`
 	Bedrooms             int            `json:"bedrooms"`
 	Bathrooms            int            `json:"bathrooms"`
@@ -100,8 +98,7 @@ func MapHostListingSummary(listing *domainlistings.Listing) HostListingSummary {
 		City:             listing.Address.City,
 		Region:           listing.Address.Region,
 		Country:          listing.Address.Country,
-		NightlyRateCents: listing.NightlyRateCents,
-		RateCents:        listing.NightlyRateCents,
+		RateRub:          listing.RateRub,
 		PriceUnit:        hostPriceUnit(listing.RentalTermType),
 		GuestsLimit:      listing.GuestsLimit,
 		Bedrooms:         listing.Bedrooms,
@@ -150,8 +147,7 @@ func MapHostListingDetail(listing *domainlistings.Listing) HostListingDetail {
 		State:                string(listing.State),
 		Tags:                 append([]string(nil), listing.Tags...),
 		Highlights:           append([]string(nil), listing.Highlights...),
-		NightlyRateCents:     listing.NightlyRateCents,
-		RateCents:            listing.NightlyRateCents,
+		RateRub:              listing.RateRub,
 		PriceUnit:            hostPriceUnit(listing.RentalTermType),
 		Bedrooms:             listing.Bedrooms,
 		Bathrooms:            listing.Bathrooms,

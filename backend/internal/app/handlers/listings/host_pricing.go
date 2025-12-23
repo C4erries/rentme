@@ -86,7 +86,7 @@ func (h *HostListingPriceSuggestionHandler) Handle(ctx context.Context, q HostLi
 	}
 
 	recommended := breakdown.Nightly.Amount
-	current := listing.NightlyRateCents
+	current := listing.RateRub
 	level := priceLevelFor(current, recommended)
 	gapPercent := priceGapPercent(current, recommended)
 
@@ -94,8 +94,8 @@ func (h *HostListingPriceSuggestionHandler) Handle(ctx context.Context, q HostLi
 
 	result := dto.HostListingPriceSuggestion{
 		ListingID:             string(listing.ID),
-		RecommendedPriceCents: recommended,
-		CurrentPriceCents:     current,
+		RecommendedPriceRub:   recommended,
+		CurrentPriceRub:       current,
 		PriceLevel:            level,
 		PriceGapPercent:       gapPercent,
 		Message:               message,
@@ -130,7 +130,10 @@ func priceGapPercent(current, recommended int64) float64 {
 	if recommended == 0 {
 		return 0
 	}
-	return math.Round((float64(current-recommended)/float64(recommended))*100*100) / 100
+	const percentBase = 100.0
+	const precisionBase = 100.0
+	percent := (float64(current-recommended) / float64(recommended)) * percentBase
+	return math.Round(percent*precisionBase) / precisionBase
 }
 
 func priceMessage(level string) string {

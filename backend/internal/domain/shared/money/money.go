@@ -10,7 +10,7 @@ var (
 	ErrCurrencyMismatch = errors.New("money: currency mismatch")
 )
 
-// Money keeps amounts in minor units to avoid floating point issues.
+// Money keeps amounts in integer RUB to avoid floating point issues.
 type Money struct {
 	Amount   int64
 	Currency string

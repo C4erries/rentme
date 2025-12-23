@@ -21,8 +21,8 @@ type PricingEngine struct {
 // NewPricingEngine returns an engine with sane defaults when zero values are provided.
 func NewPricingEngine() *PricingEngine {
 	return &PricingEngine{
-		BaseNightly: money.Must(15000, "USD"), // $150.00
-		CleaningFee: money.Must(5000, "USD"),  // $50.00
+		BaseNightly: money.Must(15000, "RUB"),
+		CleaningFee: money.Must(1500, "RUB"),
 	}
 }
 

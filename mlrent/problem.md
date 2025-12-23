@@ -20,7 +20,7 @@ id,city,price,minutes,way,rooms,total_area,storey,storeys,renovation,building_ag
 Где:
 - `id` — технический идентификатор строки;
 - `city` — город (например, `Moscow`);
-- `price` — целевая стоимость (в обучении; в интеграции обычно близка к `NightlyRateCents`);
+- `price` - целевая стоимость (целые рубли; в интеграции соответствует `Listing.RateRub`);
 - `minutes` — оценка времени до центра, в минутах;
 - `way` — способ добирания (`walk` / `car`);
 - `rooms` — количество комнат;
@@ -46,7 +46,7 @@ id,city,price,minutes,way,rooms,total_area,storey,storeys,renovation,building_ag
 - `storeys` ↔ `Listing.FloorsTotal`
 - `renovation` ↔ `Listing.RenovationScore`
 - `building_age_years` ↔ `Listing.BuildingAgeYears`
-- `price` ↔ таргетная цена (как правило, связана с `NightlyRateCents`)
+- `price` ↔ таргетная цена (как правило, связана с `Listing.RateRub`, то есть рубли)
 - `minutes`, `way` ↔ производные признаки (гео + транспорт).
 
 Дополнительные поля `Listing` (например, `GuestsLimit`, `MinNights`, `MaxNights`, `Rating`, `Region`) в текущую версию модели **не входят**. Это осознанное упрощение: модель опирается на компактный набор понятных признаков, а остальные могут использоваться в анализе или последующих версиях моделей.
@@ -133,4 +133,3 @@ ML‑сервис:
    - либо через отдельный endpoint в ML‑сервисе;
    - либо через структурированное логирование, которое может использовать админка.
 5. Поддерживать простоту кода: сохранять структуру `ml.py` и `main.py` максимально читаемой, чтобы другим участникам команды было просто адаптировать модели под новые данные.
-

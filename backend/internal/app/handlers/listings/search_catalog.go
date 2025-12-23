@@ -23,8 +23,8 @@ type SearchCatalogQuery struct {
 	Tags          []string
 	Amenities     []string
 	MinGuests     int
-	PriceMinCents int64
-	PriceMaxCents int64
+	PriceMinRub   int64
+	PriceMaxRub   int64
 	PropertyTypes []string
 	RentalTerms   []string
 	Sort          string
@@ -64,8 +64,8 @@ func (h *SearchCatalogHandler) Handle(ctx context.Context, q SearchCatalogQuery)
 		Tags:          append([]string(nil), q.Tags...),
 		Amenities:     append([]string(nil), q.Amenities...),
 		MinGuests:     q.MinGuests,
-		PriceMinCents: q.PriceMinCents,
-		PriceMaxCents: q.PriceMaxCents,
+		PriceMinRub:   q.PriceMinRub,
+		PriceMaxRub:   q.PriceMaxRub,
 		PropertyTypes: append([]string(nil), q.PropertyTypes...),
 		RentalTerms:   parseRentalTerms(q.RentalTerms),
 		Sort:          domainlistings.CatalogSort(q.Sort),
