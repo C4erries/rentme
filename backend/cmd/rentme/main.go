@@ -172,6 +172,10 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		Encoder:    outbox.JSONEventEncoder{},
 	}
 	commands.RegisterHandler(commandBus, bookingapp.RequestBookingCommand{}.Key(), bookingHandler)
+	confirmBookingHandler := &bookingapp.ConfirmHostBookingHandler{Logger: logger}
+	commands.RegisterHandler(commandBus, bookingapp.ConfirmHostBookingCommand{}.Key(), confirmBookingHandler)
+	declineBookingHandler := &bookingapp.DeclineHostBookingHandler{Logger: logger}
+	commands.RegisterHandler(commandBus, bookingapp.DeclineHostBookingCommand{}.Key(), declineBookingHandler)
 	reviewSubmitHandler := &reviewsapp.SubmitReviewHandler{
 		UoWFactory: uowFactory,
 		Logger:     logger,
@@ -226,6 +230,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		Logger:     logger,
 	}
 	queries.RegisterHandler(queryBus, meapp.ListGuestBookingsQuery{}.Key(), meBookingsHandler)
+	hostBookingsHandler := &bookingapp.ListHostBookingsHandler{
+		UoWFactory: uowFactory,
+		Logger:     logger,
+	}
+	queries.RegisterHandler(queryBus, bookingapp.ListHostBookingsQuery{}.Key(), hostBookingsHandler)
 	listingReviewsHandler := &reviewsapp.ListListingReviewsHandler{
 		UoWFactory: uowFactory,
 		Logger:     logger,
@@ -258,6 +267,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 				Queries: queryBusWithMiddleware,
 			},
 			HostListing: ginserver.HostListingHandler{
+				Commands: commandBusWithMiddleware,
+				Queries:  queryBusWithMiddleware,
+				Logger:   logger,
+			},
+			HostBooking: ginserver.HostBookingHandler{
 				Commands: commandBusWithMiddleware,
 				Queries:  queryBusWithMiddleware,
 				Logger:   logger,

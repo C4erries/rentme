@@ -441,6 +441,9 @@ func buildHostListingPayload(req hostListingRequest) (listingapp.HostListingPayl
 	if travelMode == "" {
 		travelMode = "car"
 	}
+	if travelMode == "public" {
+		travelMode = "transit"
+	}
 
 	var rentalTerm domainlistings.RentalTermType
 	if strings.TrimSpace(req.RentalTerm) != "" {

@@ -83,12 +83,43 @@ func (r *BookingRepository) ListByGuest(ctx context.Context, guestID string) ([]
 	return items, nil
 }
 
+func (r *BookingRepository) ListByListing(ctx context.Context, listingID listings.ListingID) ([]*domainbooking.Booking, error) {
+	filter := bson.M{"listing_id": string(listingID)}
+	cur, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var items []*domainbooking.Booking
+	for cur.Next(ctx) {
+		var doc bookingDocument
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		agg, err := doc.toAggregate()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, agg)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
+	return items, nil
+}
+
 type bookingDocument struct {
 	ID          string                                   `bson:"_id"`
 	ListingID   string                                   `bson:"listing_id"`
 	GuestID     string                                   `bson:"guest_id"`
 	Range       rangeDocument                            `bson:"range"`
 	Guests      int                                      `bson:"guests"`
+	Months      int                                      `bson:"months"`
+	PriceUnit   string                                   `bson:"price_unit"`
 	Price       domainpricing.PriceBreakdown             `bson:"price"`
 	State       string                                   `bson:"state"`
 	PaymentHold string                                   `bson:"payment_hold"`
@@ -105,6 +136,8 @@ func newBookingDocument(b *domainbooking.Booking) bookingDocument {
 		GuestID:     b.GuestID,
 		Range:       rangeDocument{CheckIn: b.Range.CheckIn.UnixMilli(), CheckOut: b.Range.CheckOut.UnixMilli()},
 		Guests:      b.Guests,
+		Months:      b.Months,
+		PriceUnit:   b.PriceUnit,
 		Price:       b.Price,
 		State:       string(b.State),
 		PaymentHold: b.PaymentHold,
@@ -123,6 +156,8 @@ func (d bookingDocument) toAggregate() (*domainbooking.Booking, error) {
 		GuestID:     d.GuestID,
 		Range:       dr,
 		Guests:      d.Guests,
+		Months:      d.Months,
+		PriceUnit:   resolvePriceUnit(d.PriceUnit),
 		Price:       d.Price,
 		State:       domainbooking.BookingState(d.State),
 		PaymentHold: d.PaymentHold,
@@ -141,4 +176,13 @@ type rangeDocument struct {
 
 func timestampToTime(ms int64) time.Time {
 	return time.UnixMilli(ms).UTC()
+}
+
+func resolvePriceUnit(value string) string {
+	switch value {
+	case "night", "month":
+		return value
+	default:
+		return "night"
+	}
 }

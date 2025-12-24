@@ -42,11 +42,18 @@ type HostListingHTTP interface {
 	UploadPhoto(c *gin.Context)
 }
 
+type HostBookingHTTP interface {
+	List(c *gin.Context)
+	Confirm(c *gin.Context)
+	Decline(c *gin.Context)
+}
+
 type Handlers struct {
 	Booking        BookingHTTP
 	Availability   AvailabilityHTTP
 	Listing        ListingHTTP
 	HostListing    HostListingHTTP
+	HostBooking    HostBookingHTTP
 	Chat           ChatHTTP
 	Auth           AuthHTTP
 	Reviews        ReviewsHTTP
@@ -115,6 +122,7 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 		api.POST("/chats/:id/messages", h.Chat.SendMessage)
 		api.POST("/chats/:id/read", h.Chat.MarkRead)
 		api.POST("/listings/:id/chat", h.Chat.CreateListingConversation)
+		api.POST("/bookings/:id/chat", h.Chat.CreateBookingConversation)
 	}
 	if h.HostListing != nil {
 		hostGroup := api.Group("/host/listings")
@@ -126,6 +134,12 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 		hostGroup.POST("/:id/unpublish", h.HostListing.Unpublish)
 		hostGroup.POST("/:id/price-suggestion", h.HostListing.PriceSuggestion)
 		hostGroup.POST("/:id/photos", h.HostListing.UploadPhoto)
+	}
+	if h.HostBooking != nil {
+		hostBookingGroup := api.Group("/host/bookings")
+		hostBookingGroup.GET("", h.HostBooking.List)
+		hostBookingGroup.POST("/:id/confirm", h.HostBooking.Confirm)
+		hostBookingGroup.POST("/:id/decline", h.HostBooking.Decline)
 	}
 	if h.Me != nil {
 		meGroup := api.Group("/me")

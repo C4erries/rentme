@@ -35,7 +35,7 @@ def parser(file: str):
     if not rows:
         return np.empty((0, 8), dtype=float), np.empty(0, dtype=float)
 
-    way_map = {"walk": 0.0, "car": 1.0}
+    way_map = {"walk": 0.0, "car": 1.0, "transit": 0.5}
     data = []
     labels = []
     for row in rows:
@@ -83,10 +83,10 @@ def predict(features, model: Pipeline) -> float:
 
 
 def build_feature_vector_from_dict(data):
-    way_map = {"walk": 0.0, "car": 1.0}
+    way_map = {"walk": 0.0, "car": 1.0, "transit": 0.5}
     way_raw = str(data["way"]).strip().lower()
     if way_raw not in way_map:
-        raise ValueError('way must be "walk" or "car"')
+        raise ValueError('way must be "walk", "car", or "transit"')
     return [
         float(data["minutes"]),
         way_map[way_raw],

@@ -17,6 +17,7 @@ type ListingCatalog struct {
 // ListingCard is a lightweight representation for catalog cards.
 type ListingCard struct {
 	ID               string              `json:"id"`
+	HostID           string              `json:"host_id"`
 	Title            string              `json:"title"`
 	City             string              `json:"city"`
 	Region           string              `json:"region"`
@@ -134,6 +135,7 @@ func MapListingCard(listing *domainlistings.Listing) ListingCard {
 	}
 	return ListingCard{
 		ID:               string(listing.ID),
+		HostID:           string(listing.Host),
 		Title:            listing.Title,
 		City:             listing.Address.City,
 		Region:           listing.Address.Region,

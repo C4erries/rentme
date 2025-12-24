@@ -87,9 +87,12 @@ func (e *MLPricingEngine) Quote(ctx context.Context, input domainpricing.QuoteIn
 	if travelMinutes <= 0 {
 		travelMinutes = 20
 	}
-	travelMode := listing.TravelMode
-	if strings.TrimSpace(travelMode) == "" {
+	travelMode := strings.TrimSpace(strings.ToLower(listing.TravelMode))
+	if travelMode == "" {
 		travelMode = "car"
+	}
+	if travelMode == "public" {
+		travelMode = "transit"
 	}
 	reqPayload := mlPredictRequest{
 		ListingID:        string(listing.ID),

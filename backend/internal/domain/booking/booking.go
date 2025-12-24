@@ -41,6 +41,8 @@ type Booking struct {
 	GuestID     string
 	Range       daterange.DateRange
 	Guests      int
+	Months      int
+	PriceUnit   string
 	Price       pricing.PriceBreakdown
 	State       BookingState
 	PaymentHold string
@@ -55,6 +57,7 @@ type Repository interface {
 	ByID(ctx context.Context, id BookingID) (*Booking, error)
 	Save(ctx context.Context, booking *Booking) error
 	ListByGuest(ctx context.Context, guestID string) ([]*Booking, error)
+	ListByListing(ctx context.Context, listingID listings.ListingID) ([]*Booking, error)
 }
 
 type CreateParams struct {
@@ -63,6 +66,8 @@ type CreateParams struct {
 	GuestID   string
 	Range     daterange.DateRange
 	Guests    int
+	Months    int
+	PriceUnit string
 	Price     pricing.PriceBreakdown
 	Policy    CancellationPolicySnapshot
 	CreatedAt time.Time
@@ -75,6 +80,21 @@ func NewBooking(params CreateParams) (*Booking, error) {
 	}
 	if params.GuestID == "" {
 		return nil, errors.New("booking: guest id required")
+	}
+	if params.PriceUnit == "" {
+		params.PriceUnit = "night"
+	}
+	switch params.PriceUnit {
+	case "night":
+		if params.Months < 0 {
+			return nil, errors.New("booking: months cannot be negative")
+		}
+	case "month":
+		if params.Months <= 0 {
+			return nil, errors.New("booking: months must be positive")
+		}
+	default:
+		return nil, errors.New("booking: price unit must be night or month")
 	}
 	if err := params.Price.RecalculateTotal(); err != nil {
 		return nil, err
@@ -89,6 +109,8 @@ func NewBooking(params CreateParams) (*Booking, error) {
 		GuestID:   params.GuestID,
 		Range:     params.Range,
 		Guests:    params.Guests,
+		Months:    params.Months,
+		PriceUnit: params.PriceUnit,
 		Price:     params.Price.Copy(),
 		Policy:    params.Policy,
 		State:     StatePending,

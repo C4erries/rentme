@@ -19,6 +19,7 @@ type createBookingRequest struct {
 	ListingID string    `json:"listing_id"`
 	CheckIn   time.Time `json:"check_in"`
 	CheckOut  time.Time `json:"check_out"`
+	Months    int       `json:"months"`
 	Guests    int       `json:"guests"`
 }
 
@@ -42,6 +43,7 @@ func (h BookingHandler) Create(c *gin.Context) {
 		GuestID:         user.ID,
 		CheckIn:         req.CheckIn,
 		CheckOut:        req.CheckOut,
+		Months:          req.Months,
 		Guests:          req.Guests,
 		IdempotencyKeyV: c.GetHeader("Idempotency-Key"),
 	}

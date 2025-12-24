@@ -12,7 +12,9 @@ import (
 	"rentme/internal/app/uow"
 	domainbooking "rentme/internal/domain/booking"
 	domainlistings "rentme/internal/domain/listings"
+	domainpricing "rentme/internal/domain/pricing"
 	domainrange "rentme/internal/domain/shared/daterange"
+	"rentme/internal/domain/shared/money"
 )
 
 const requestBookingKey = "booking.request"
@@ -23,6 +25,7 @@ type RequestBookingCommand struct {
 	GuestID         string
 	CheckIn         time.Time
 	CheckOut        time.Time
+	Months          int
 	Guests          int
 	IdempotencyKeyV string
 }
@@ -70,7 +73,17 @@ func (h *RequestBookingHandler) Handle(ctx context.Context, cmd RequestBookingCo
 		}()
 	}
 
-	dr, err := domainrange.New(cmd.CheckIn, cmd.CheckOut)
+	listing, err := unit.Listings().ByID(ctx, domainlistings.ListingID(cmd.ListingID))
+	if err != nil {
+		return nil, err
+	}
+
+	rentalTerm := listing.RentalTermType
+	if rentalTerm == "" {
+		rentalTerm = domainlistings.RentalTermLong
+	}
+
+	dr, months, priceUnit, err := resolveBookingRange(rentalTerm, cmd.CheckIn, cmd.CheckOut, cmd.Months)
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +92,11 @@ func (h *RequestBookingHandler) Handle(ctx context.Context, cmd RequestBookingCo
 		return nil, err
 	}
 
-	listing, err := unit.Listings().ByID(ctx, domainlistings.ListingID(cmd.ListingID))
-	if err != nil {
-		return nil, err
+	units := dr.Nights()
+	if priceUnit == "month" {
+		units = months
 	}
-
-	price, err := h.Pricing.Quote(ctx, listing, dr, cmd.Guests)
+	price, err := buildBookingPrice(listing.RateRub, units)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +107,8 @@ func (h *RequestBookingHandler) Handle(ctx context.Context, cmd RequestBookingCo
 		GuestID:   cmd.GuestID,
 		Range:     dr,
 		Guests:    cmd.Guests,
+		Months:    months,
+		PriceUnit: priceUnit,
 		Price:     price,
 		Policy: domainbooking.CancellationPolicySnapshot{
 			PolicyID: listing.CancellationPolicyID,
@@ -130,6 +144,44 @@ func (h *RequestBookingHandler) encoder() outbox.EventEncoder {
 		return h.Encoder
 	}
 	return outbox.JSONEventEncoder{}
+}
+
+func resolveBookingRange(term domainlistings.RentalTermType, checkIn, checkOut time.Time, months int) (domainrange.DateRange, int, string, error) {
+	switch term {
+	case domainlistings.RentalTermLong:
+		if months < 1 || months > 12 {
+			return domainrange.DateRange{}, 0, "", errors.New("months must be between 1 and 12")
+		}
+		computedOut := checkIn.AddDate(0, months, 0)
+		dr, err := domainrange.New(checkIn, computedOut)
+		if err != nil {
+			return domainrange.DateRange{}, 0, "", err
+		}
+		return dr, months, "month", nil
+	default:
+		if checkOut.IsZero() {
+			return domainrange.DateRange{}, 0, "", errors.New("check_out is required")
+		}
+		dr, err := domainrange.New(checkIn, checkOut)
+		if err != nil {
+			return domainrange.DateRange{}, 0, "", err
+		}
+		return dr, 0, "night", nil
+	}
+}
+
+func buildBookingPrice(rateRub int64, units int) (domainpricing.PriceBreakdown, error) {
+	if units <= 0 {
+		return domainpricing.PriceBreakdown{}, errors.New("booking: units must be positive")
+	}
+	breakdown := domainpricing.PriceBreakdown{
+		Nights:  units,
+		Nightly: money.Must(rateRub, "RUB"),
+	}
+	if err := breakdown.RecalculateTotal(); err != nil {
+		return domainpricing.PriceBreakdown{}, err
+	}
+	return breakdown, nil
 }
 
 var _ commands.Handler[RequestBookingCommand, *RequestBookingResult] = (*RequestBookingHandler)(nil)

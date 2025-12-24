@@ -14,6 +14,7 @@ import (
 
 	"rentme/internal/app/dto"
 	"rentme/internal/app/uow"
+	domainbooking "rentme/internal/domain/booking"
 	domainlistings "rentme/internal/domain/listings"
 	"rentme/internal/infra/messaging"
 )
@@ -24,6 +25,7 @@ type ChatHTTP interface {
 	ListMessages(c *gin.Context)
 	SendMessage(c *gin.Context)
 	CreateListingConversation(c *gin.Context)
+	CreateBookingConversation(c *gin.Context)
 	CreateDirectConversation(c *gin.Context)
 	MarkRead(c *gin.Context)
 }
@@ -228,6 +230,86 @@ func (h ChatHandler) CreateListingConversation(c *gin.Context) {
 			"create conversation",
 			"listing_id",
 			listingID,
+			"user_id",
+			principal.ID,
+			"host_id",
+			hostID,
+		)
+		return
+	}
+	response := dto.Conversation{
+		ID:                conversation.ID,
+		ListingID:         conversation.ListingID,
+		Participants:      append([]string(nil), conversation.Participants...),
+		CreatedAt:         conversation.CreatedAt,
+		LastMessageAt:     conversation.LastMessageAt,
+		LastMessageID:     conversation.LastMessageID,
+		LastMessageSender: conversation.LastSenderID,
+		LastMessageText:   conversation.LastMessageText,
+		HasUnread:         conversation.HasUnread,
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+// CreateBookingConversation gets or creates a host/guest conversation for a booking.
+func (h ChatHandler) CreateBookingConversation(c *gin.Context) {
+	principal, ok := requireRole(c, "")
+	if !ok {
+		return
+	}
+	if h.Messaging == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "messaging unavailable"})
+		return
+	}
+	bookingID := strings.TrimSpace(c.Param("id"))
+	if bookingID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "booking id is required"})
+		return
+	}
+	if h.UoWFactory == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "bookings unavailable"})
+		return
+	}
+	unit, err := h.UoWFactory.Begin(c.Request.Context(), uow.TxOptions{ReadOnly: true})
+	if err != nil {
+		h.logError("begin uow failed", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot load booking"})
+		return
+	}
+	defer unit.Rollback(c.Request.Context())
+
+	booking, err := unit.Booking().ByID(c.Request.Context(), domainbooking.BookingID(bookingID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "booking not found"})
+		return
+	}
+	listing, err := unit.Listings().ByID(c.Request.Context(), booking.ListingID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
+		return
+	}
+
+	hostID := string(listing.Host)
+	guestID := booking.GuestID
+	if principal.ID != hostID && principal.ID != guestID && !principal.HasRole("admin") {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not a booking participant"})
+		return
+	}
+	if hostID == "" || guestID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "booking participants missing"})
+		return
+	}
+
+	conversation, err := h.Messaging.GetOrCreateConversationForListing(c.Request.Context(), string(listing.ID), guestID, hostID)
+	if err != nil {
+		h.respondMessagingError(
+			c,
+			err,
+			"create conversation",
+			"booking_id",
+			bookingID,
+			"listing_id",
+			listing.ID,
 			"user_id",
 			principal.ID,
 			"host_id",

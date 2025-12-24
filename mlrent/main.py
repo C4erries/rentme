@@ -24,7 +24,7 @@ class PredictRequest(BaseModel):
     rental_term: Optional[Literal["short_term", "long_term"]] = None
     city: str = "Moscow"
     minutes: float
-    way: str  # "walk" or "car"
+    way: str  # "walk", "car", or "transit"
     rooms: int
     total_area: float
     storey: float
@@ -82,6 +82,7 @@ def _predict_with_term(request: PredictRequest, rental_term: str) -> PredictResp
     try:
         feature_vector = build_feature_vector_from_dict(request.dict())
         recommended_price = predict(feature_vector, model)
+        recommended_price = apply_renovation_adjustment(recommended_price, request.renovation)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -96,6 +97,14 @@ def _predict_with_term(request: PredictRequest, rental_term: str) -> PredictResp
         current_price=request.current_price,
         diff=diff,
     )
+
+
+def apply_renovation_adjustment(price: float, renovation_score: int) -> float:
+    baseline = 5
+    factor_per_point = 0.02
+    delta = renovation_score - baseline
+    adjusted = price * (1 + factor_per_point * delta)
+    return max(adjusted, 0.0)
 
 
 @app.post("/predict", response_model=PredictResponse)

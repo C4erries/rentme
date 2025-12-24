@@ -29,6 +29,8 @@ type GuestBookingSummary struct {
 	CheckIn         time.Time              `json:"check_in"`
 	CheckOut        time.Time              `json:"check_out"`
 	Guests          int                    `json:"guests"`
+	Months          int                    `json:"months,omitempty"`
+	PriceUnit       string                 `json:"price_unit"`
 	Status          string                 `json:"status"`
 	Total           MoneyDTO               `json:"total"`
 	CreatedAt       time.Time              `json:"created_at"`
@@ -38,6 +40,24 @@ type GuestBookingSummary struct {
 
 type GuestBookingCollection struct {
 	Items []GuestBookingSummary `json:"items"`
+}
+
+type HostBookingSummary struct {
+	ID        string                 `json:"id"`
+	Listing   BookingListingSnapshot `json:"listing"`
+	GuestID   string                 `json:"guest_id"`
+	CheckIn   time.Time              `json:"check_in"`
+	CheckOut  time.Time              `json:"check_out"`
+	Guests    int                    `json:"guests"`
+	Months    int                    `json:"months,omitempty"`
+	PriceUnit string                 `json:"price_unit"`
+	Status    string                 `json:"status"`
+	Total     MoneyDTO               `json:"total"`
+	CreatedAt time.Time              `json:"created_at"`
+}
+
+type HostBookingCollection struct {
+	Items []HostBookingSummary `json:"items"`
 }
 
 func MapMoney(value money.Money) MoneyDTO {
@@ -70,10 +90,48 @@ func MapGuestBookingSummary(
 		CheckIn:         booking.Range.CheckIn,
 		CheckOut:        booking.Range.CheckOut,
 		Guests:          booking.Guests,
+		Months:          booking.Months,
+		PriceUnit:       resolvePriceUnit(booking.PriceUnit),
 		Status:          string(booking.State),
 		Total:           MapMoney(booking.Price.Total),
 		CreatedAt:       booking.CreatedAt,
 		ReviewSubmitted: reviewSubmitted,
 		CanReview:       canReview,
+	}
+}
+
+func MapHostBookingSummary(booking *domainbooking.Booking, listing *domainlistings.Listing) HostBookingSummary {
+	snapshot := BookingListingSnapshot{
+		ID: string(booking.ListingID),
+	}
+	if listing != nil {
+		snapshot.Title = listing.Title
+		snapshot.AddressLine1 = listing.Address.Line1
+		snapshot.City = listing.Address.City
+		snapshot.Region = listing.Address.Region
+		snapshot.Country = listing.Address.Country
+		snapshot.ThumbnailURL = listing.ThumbnailURL
+	}
+	return HostBookingSummary{
+		ID:        string(booking.ID),
+		Listing:   snapshot,
+		GuestID:   booking.GuestID,
+		CheckIn:   booking.Range.CheckIn,
+		CheckOut:  booking.Range.CheckOut,
+		Guests:    booking.Guests,
+		Months:    booking.Months,
+		PriceUnit: resolvePriceUnit(booking.PriceUnit),
+		Status:    string(booking.State),
+		Total:     MapMoney(booking.Price.Total),
+		CreatedAt: booking.CreatedAt,
+	}
+}
+
+func resolvePriceUnit(value string) string {
+	switch value {
+	case "night", "month":
+		return value
+	default:
+		return "night"
 	}
 }

@@ -327,6 +327,26 @@ func (r *BookingRepository) ListByGuest(ctx context.Context, guestID string) ([]
 	return result, nil
 }
 
+func (r *BookingRepository) ListByListing(ctx context.Context, listingID domainlistings.ListingID) ([]*domainbooking.Booking, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if strings.TrimSpace(string(listingID)) == "" {
+		return nil, errors.New("memory: listing id required")
+	}
+	matches := make([]*domainbooking.Booking, 0)
+	for _, booking := range r.items {
+		if booking.ListingID == listingID {
+			matches = append(matches, booking)
+		}
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].CreatedAt.After(matches[j].CreatedAt)
+	})
+	result := make([]*domainbooking.Booking, len(matches))
+	copy(result, matches)
+	return result, nil
+}
+
 // ReviewsRepository is a lightweight in-memory review store.
 type ReviewsRepository struct {
 	mu    sync.RWMutex
