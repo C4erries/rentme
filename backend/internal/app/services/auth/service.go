@@ -17,6 +17,7 @@ import (
 var (
 	ErrInvalidCredentials = errors.New("auth: invalid credentials")
 	ErrPasswordTooShort   = errors.New("auth: password must be at least 8 characters")
+	ErrUserBlocked        = errors.New("auth: user blocked")
 )
 
 type PasswordHasher interface {
@@ -121,6 +122,9 @@ func (s *Service) Login(ctx context.Context, params LoginParams) (*AuthResult, e
 		}
 		return nil, err
 	}
+	if user.Blocked {
+		return nil, ErrUserBlocked
+	}
 	if err := s.Passwords.Compare(user.PasswordHash, params.Password); err != nil {
 		return nil, ErrInvalidCredentials
 	}
@@ -170,6 +174,10 @@ func (s *Service) ResolveToken(ctx context.Context, token string) (*ResolveResul
 			return nil, domainauth.ErrSessionNotFound
 		}
 		return nil, err
+	}
+	if user.Blocked {
+		_ = s.Sessions.DeleteByUser(ctx, user.ID)
+		return nil, ErrUserBlocked
 	}
 	return &ResolveResult{User: user, Session: session}, nil
 }

@@ -29,6 +29,11 @@ type submitReviewRequest struct {
 	Text   string `json:"text"`
 }
 
+type updateReviewRequest struct {
+	Rating int    `json:"rating"`
+	Text   string `json:"text"`
+}
+
 func (h ReviewsHandler) Submit(c *gin.Context) {
 	user, ok := requireRole(c, "")
 	if !ok {
@@ -84,6 +89,60 @@ func (h ReviewsHandler) handleSubmitError(c *gin.Context, err error) {
 	}
 	if h.Logger != nil {
 		h.Logger.Warn("review submit failed", "status", status, "error", err)
+	}
+	c.JSON(status, gin.H{"error": err.Error()})
+}
+
+func (h ReviewsHandler) Update(c *gin.Context) {
+	user, ok := requireRole(c, "")
+	if !ok {
+		return
+	}
+	if h.Commands == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "reviews: commands unavailable"})
+		return
+	}
+	reviewID := c.Param("id")
+	if reviewID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "review id is required"})
+		return
+	}
+	var req updateReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	cmd := reviewsapp.UpdateReviewCommand{
+		ReviewID: reviewID,
+		AuthorID: user.ID,
+		Rating:   req.Rating,
+		Text:     req.Text,
+		Now:      time.Now().UTC(),
+	}
+	review, err := commands.Dispatch[reviewsapp.UpdateReviewCommand, dto.Review](c.Request.Context(), h.Commands, cmd)
+	if err != nil {
+		h.handleUpdateError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, review)
+}
+
+func (h ReviewsHandler) handleUpdateError(c *gin.Context, err error) {
+	var status int
+	switch {
+	case errors.Is(err, domainreviews.ErrInvalidRating):
+		status = http.StatusBadRequest
+	case errors.Is(err, reviewsapp.ErrReviewOwnership):
+		status = http.StatusForbidden
+	case errors.Is(err, domainreviews.ErrNotFound):
+		status = http.StatusNotFound
+	case errors.Is(err, uow.ErrUnitOfWorkMissing):
+		status = http.StatusServiceUnavailable
+	default:
+		status = http.StatusInternalServerError
+	}
+	if h.Logger != nil {
+		h.Logger.Warn("review update failed", "status", status, "error", err)
 	}
 	c.JSON(status, gin.H{"error": err.Error()})
 }

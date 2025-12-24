@@ -29,6 +29,7 @@ type ListingHTTP interface {
 type ReviewsHTTP interface {
 	Submit(c *gin.Context)
 	ListByListing(c *gin.Context)
+	Update(c *gin.Context)
 }
 
 type HostListingHTTP interface {
@@ -106,6 +107,7 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	}
 	if h.Reviews != nil {
 		api.POST("/bookings/:id/review", h.Reviews.Submit)
+		api.PUT("/reviews/:id", h.Reviews.Update)
 		api.GET("/listings/:id/reviews", h.Reviews.ListByListing)
 	}
 	if h.Availability != nil {
@@ -148,6 +150,8 @@ func NewServer(cfg config.Config, obsMW obs.Middleware, health obs.HealthHandler
 	if h.Admin != nil {
 		adminGroup := api.Group("/admin")
 		adminGroup.GET("/users", h.Admin.ListUsers)
+		adminGroup.POST("/users/:id/block", h.Admin.BlockUser)
+		adminGroup.POST("/users/:id/unblock", h.Admin.UnblockUser)
 		adminGroup.GET("/ml/metrics", h.Admin.MLMetrics)
 	}
 

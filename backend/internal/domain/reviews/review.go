@@ -31,6 +31,7 @@ type Review struct {
 }
 
 type Repository interface {
+	ByID(ctx context.Context, id ReviewID) (*Review, error)
 	ByBooking(ctx context.Context, bookingID booking.BookingID, authorID string) (*Review, error)
 	ListByListing(ctx context.Context, listingID listings.ListingID, limit, offset int) ([]*Review, error)
 	Save(ctx context.Context, review *Review) error
@@ -68,6 +69,19 @@ func (r *Review) UpdateText(text string, now time.Time) error {
 	if !r.Submitted {
 		return errors.New("reviews: cannot update draft state")
 	}
+	r.Text = strings.TrimSpace(text)
+	r.Record(ReviewUpdated{ReviewID: r.ID, At: now.UTC()})
+	return nil
+}
+
+func (r *Review) Update(rating int, text string, now time.Time) error {
+	if !r.Submitted {
+		return errors.New("reviews: cannot update draft state")
+	}
+	if rating < 1 || rating > 5 {
+		return ErrInvalidRating
+	}
+	r.Rating = rating
 	r.Text = strings.TrimSpace(text)
 	r.Record(ReviewUpdated{ReviewID: r.ID, At: now.UTC()})
 	return nil

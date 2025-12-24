@@ -351,11 +351,25 @@ func (r *BookingRepository) ListByListing(ctx context.Context, listingID domainl
 type ReviewsRepository struct {
 	mu    sync.RWMutex
 	items map[string]*domainreviews.Review
+	byID  map[domainreviews.ReviewID]*domainreviews.Review
 }
 
 // NewReviewsRepository builds an empty reviews store.
 func NewReviewsRepository() *ReviewsRepository {
-	return &ReviewsRepository{items: make(map[string]*domainreviews.Review)}
+	return &ReviewsRepository{
+		items: make(map[string]*domainreviews.Review),
+		byID:  make(map[domainreviews.ReviewID]*domainreviews.Review),
+	}
+}
+
+// ByID returns a review by its identifier.
+func (r *ReviewsRepository) ByID(ctx context.Context, id domainreviews.ReviewID) (*domainreviews.Review, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if review, ok := r.byID[id]; ok {
+		return review, nil
+	}
+	return nil, domainreviews.ErrNotFound
 }
 
 // ByBooking locates a review using booking and author identifiers.
@@ -412,6 +426,7 @@ func (r *ReviewsRepository) Save(ctx context.Context, review *domainreviews.Revi
 	defer r.mu.Unlock()
 	key := bookingReviewKey(review.BookingID, review.AuthorID)
 	r.items[key] = review
+	r.byID[review.ID] = review
 	return nil
 }
 

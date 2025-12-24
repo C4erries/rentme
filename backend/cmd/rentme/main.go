@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,8 +28,12 @@ import (
 	"rentme/internal/app/outbox"
 	"rentme/internal/app/queries"
 	authsvc "rentme/internal/app/services/auth"
+	domainbooking "rentme/internal/domain/booking"
 	"rentme/internal/domain/listings"
 	domainpricing "rentme/internal/domain/pricing"
+	domainreviews "rentme/internal/domain/reviews"
+	domainrange "rentme/internal/domain/shared/daterange"
+	"rentme/internal/domain/shared/money"
 	domainuser "rentme/internal/domain/user"
 	"rentme/internal/infra/config"
 	ginserver "rentme/internal/infra/http/gin"
@@ -99,6 +103,9 @@ func main() {
 	if err := app.loadListingFixtures(ctx, fixturesPath, logger); err != nil {
 		logger.Warn("listing fixtures load failed", "error", err, "path", fixturesPath)
 	}
+	if err := app.seedDemoGuestHistory(ctx, env, logger); err != nil {
+		logger.Warn("demo guest history seed failed", "error", err)
+	}
 
 	go func() {
 		<-ctx.Done()
@@ -122,6 +129,8 @@ type application struct {
 	repos    struct {
 		listings     *memory.ListingRepository
 		availability *memory.AvailabilityRepository
+		booking      *memory.BookingRepository
+		reviews      *memory.ReviewsRepository
 	}
 	cleanup []func()
 }
@@ -181,6 +190,11 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		Logger:     logger,
 	}
 	commands.RegisterHandler(commandBus, reviewsapp.SubmitReviewCommand{}.Key(), reviewSubmitHandler)
+	reviewUpdateHandler := &reviewsapp.UpdateReviewHandler{
+		UoWFactory: uowFactory,
+		Logger:     logger,
+	}
+	commands.RegisterHandler(commandBus, reviewsapp.UpdateReviewCommand{}.Key(), reviewUpdateHandler)
 
 	createListingHandler := &listingapp.CreateHostListingHandler{Logger: logger}
 	commands.RegisterHandler(commandBus, listingapp.CreateHostListingCommand{}.Key(), createListingHandler)
@@ -290,9 +304,10 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 				Logger:     logger,
 			},
 			Admin: ginserver.AdminHandler{
-				Users:   userRepo,
-				Metrics: buildMLMetricsClient(cfg, httpClient, logger),
-				Logger:  logger,
+				Users:    userRepo,
+				Sessions: sessionStore,
+				Metrics:  buildMLMetricsClient(cfg, httpClient, logger),
+				Logger:   logger,
 			},
 			AuthMiddleware: ginserver.AuthMiddleware{
 				Service: authService,
@@ -302,9 +317,13 @@ func buildApplication(logger *slog.Logger, cfg config.Config) application {
 		repos: struct {
 			listings     *memory.ListingRepository
 			availability *memory.AvailabilityRepository
+			booking      *memory.BookingRepository
+			reviews      *memory.ReviewsRepository
 		}{
 			listings:     listingsRepo,
 			availability: availabilityRepo,
+			booking:      bookingRepo,
+			reviews:      reviewsRepo,
 		},
 		cleanup: cleanup,
 	}
@@ -482,6 +501,7 @@ func seedDemoUsers(env string, repo domainuser.Repository, hasher security.Bcryp
 		{ID: "host-botanical", Email: "host-botanical@rentme.dev", Name: "Host Botanical", Password: "demo1234", Roles: []domainuser.Role{"host"}},
 		{ID: "guest-olga", Email: "guest-olga@rentme.dev", Name: "Ольга (гость)", Password: "demo1234", Roles: []domainuser.Role{"guest"}},
 		{ID: "guest-ivan", Email: "guest-ivan@rentme.dev", Name: "Иван (гость)", Password: "demo1234", Roles: []domainuser.Role{"guest"}},
+		{ID: "guest-marina", Email: "guest-marina@rentme.dev", Name: "Марина (гость)", Password: "demo1234", Roles: []domainuser.Role{"guest"}},
 	}
 
 	ctx := context.Background()
@@ -544,6 +564,186 @@ func seedDemoUsers(env string, repo domainuser.Repository, hasher security.Bcryp
 			logger.Info("demo user seeded", "email", acc.Email, "roles", acc.Roles)
 		}
 	}
+}
+
+func (a application) seedDemoGuestHistory(ctx context.Context, env string, logger *slog.Logger) error {
+	seed := parseBoolWithDefault(getenv("DEMO_SEED", ""), strings.ToLower(strings.TrimSpace(env)) == "dev")
+	if !seed {
+		return nil
+	}
+	if a.repos.booking == nil || a.repos.reviews == nil || a.repos.listings == nil {
+		return nil
+	}
+
+	type demoReviewSeed struct {
+		ID     string
+		Rating int
+		Text   string
+	}
+	type demoBookingSeed struct {
+		ID               string
+		ListingID        string
+		PriceUnit        string
+		Months           int
+		Nights           int
+		Guests           int
+		RateRub          int64
+		CheckInOffsetDay int
+		Review           demoReviewSeed
+	}
+
+	now := time.Now().UTC()
+	guestID := "guest-marina"
+	seeds := []demoBookingSeed{
+		{
+			ID:               "booking-demo-marina-1",
+			ListingID:        "listing-demo-10",
+			PriceUnit:        "night",
+			Nights:           4,
+			Guests:           2,
+			RateRub:          5200,
+			CheckInOffsetDay: -40,
+			Review: demoReviewSeed{
+				ID:     "review-demo-marina-1",
+				Rating: 5,
+				Text:   "Очень уютная квартира и отличный район. Заселение прошло без проблем.",
+			},
+		},
+		{
+			ID:               "booking-demo-marina-2",
+			ListingID:        "listing-demo-11",
+			PriceUnit:        "month",
+			Months:           3,
+			Guests:           3,
+			RateRub:          65000,
+			CheckInOffsetDay: -210,
+			Review: demoReviewSeed{
+				ID:     "review-demo-marina-2",
+				Rating: 5,
+				Text:   "Тихий дом, удобное расположение и комфортная планировка. Спасибо хосту!",
+			},
+		},
+	}
+
+	for _, seed := range seeds {
+		if _, err := a.repos.booking.ByID(ctx, domainbooking.BookingID(seed.ID)); err == nil {
+			continue
+		} else if err != nil && !errors.Is(err, domainbooking.ErrBookingNotFound) {
+			return err
+		}
+
+		listing, err := a.repos.listings.ByID(ctx, listings.ListingID(seed.ListingID))
+		if err != nil {
+			if logger != nil {
+				logger.Warn("demo booking listing missing", "listing_id", seed.ListingID, "error", err)
+			}
+			continue
+		}
+
+		checkIn := now.AddDate(0, 0, seed.CheckInOffsetDay)
+		checkOut := checkIn
+		switch seed.PriceUnit {
+		case "month":
+			months := seed.Months
+			if months < 1 {
+				months = 1
+			}
+			checkOut = checkIn.AddDate(0, months, 0)
+		default:
+			nights := seed.Nights
+			if nights < 1 {
+				nights = 1
+			}
+			checkOut = checkIn.AddDate(0, 0, nights)
+		}
+
+		dr, err := domainrange.New(checkIn, checkOut)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("demo booking range invalid", "booking_id", seed.ID, "error", err)
+			}
+			continue
+		}
+
+		units := dr.Nights()
+		months := 0
+		if seed.PriceUnit == "month" {
+			months = seed.Months
+			units = months
+		}
+
+		price, err := buildSeedPrice(seed.RateRub, units)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("demo booking price invalid", "booking_id", seed.ID, "error", err)
+			}
+			continue
+		}
+
+		createdAt := checkIn.AddDate(0, 0, -7)
+		booking, err := domainbooking.NewBooking(domainbooking.CreateParams{
+			ID:        domainbooking.BookingID(seed.ID),
+			ListingID: listing.ID,
+			GuestID:   guestID,
+			Range:     dr,
+			Guests:    seed.Guests,
+			Months:    months,
+			PriceUnit: seed.PriceUnit,
+			Price:     price,
+			Policy: domainbooking.CancellationPolicySnapshot{
+				PolicyID: listing.CancellationPolicyID,
+			},
+			CreatedAt: createdAt,
+		})
+		if err != nil {
+			if logger != nil {
+				logger.Warn("demo booking build failed", "booking_id", seed.ID, "error", err)
+			}
+			continue
+		}
+
+		if err := booking.Accept(createdAt.Add(2 * time.Hour)); err != nil {
+			return err
+		}
+		if err := booking.Confirm("demo-hold", createdAt.Add(4*time.Hour)); err != nil {
+			return err
+		}
+		if err := booking.CheckIn(checkIn); err != nil {
+			return err
+		}
+		if err := booking.CheckOut(checkOut); err != nil {
+			return err
+		}
+		if err := a.repos.booking.Save(ctx, booking); err != nil {
+			return err
+		}
+
+		if seed.Review.ID != "" {
+			if _, err := a.repos.reviews.ByBooking(ctx, booking.ID, guestID); err == nil {
+				continue
+			} else if err != nil && !errors.Is(err, domainreviews.ErrNotFound) {
+				return err
+			}
+
+			review, err := domainreviews.Submit(domainreviews.SubmitParams{
+				ID:        domainreviews.ReviewID(seed.Review.ID),
+				BookingID: booking.ID,
+				AuthorID:  guestID,
+				ListingID: booking.ListingID,
+				Rating:    seed.Review.Rating,
+				Text:      seed.Review.Text,
+				CreatedAt: checkOut.AddDate(0, 0, 2),
+			})
+			if err != nil {
+				return err
+			}
+			if err := a.repos.reviews.Save(ctx, review); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (a application) loadListingFixtures(ctx context.Context, path string, logger *slog.Logger) error {
@@ -686,6 +886,20 @@ func parseFixtureTime(value string, fallback time.Time) time.Time {
 		return t
 	}
 	return fallback
+}
+
+func buildSeedPrice(rateRub int64, units int) (domainpricing.PriceBreakdown, error) {
+	if units <= 0 {
+		return domainpricing.PriceBreakdown{}, errors.New("seed: units must be positive")
+	}
+	breakdown := domainpricing.PriceBreakdown{
+		Nights:  units,
+		Nightly: money.Must(rateRub, "RUB"),
+	}
+	if err := breakdown.RecalculateTotal(); err != nil {
+		return domainpricing.PriceBreakdown{}, err
+	}
+	return breakdown, nil
 }
 
 func defaultListingFixturesPath() string {

@@ -5,6 +5,7 @@ import (
 
 	domainbooking "rentme/internal/domain/booking"
 	domainlistings "rentme/internal/domain/listings"
+	domainreviews "rentme/internal/domain/reviews"
 	"rentme/internal/domain/shared/money"
 )
 
@@ -36,6 +37,10 @@ type GuestBookingSummary struct {
 	CreatedAt       time.Time              `json:"created_at"`
 	ReviewSubmitted bool                   `json:"review_submitted"`
 	CanReview       bool                   `json:"can_review"`
+	ReviewID        string                 `json:"review_id,omitempty"`
+	ReviewRating    int                    `json:"review_rating,omitempty"`
+	ReviewText      string                 `json:"review_text,omitempty"`
+	ReviewCreatedAt *time.Time             `json:"review_created_at,omitempty"`
 }
 
 type GuestBookingCollection struct {
@@ -70,7 +75,7 @@ func MapMoney(value money.Money) MoneyDTO {
 func MapGuestBookingSummary(
 	booking *domainbooking.Booking,
 	listing *domainlistings.Listing,
-	reviewSubmitted bool,
+	review *domainreviews.Review,
 	canReview bool,
 ) GuestBookingSummary {
 	snapshot := BookingListingSnapshot{
@@ -84,7 +89,7 @@ func MapGuestBookingSummary(
 		snapshot.Country = listing.Address.Country
 		snapshot.ThumbnailURL = listing.ThumbnailURL
 	}
-	return GuestBookingSummary{
+	summary := GuestBookingSummary{
 		ID:              string(booking.ID),
 		Listing:         snapshot,
 		CheckIn:         booking.Range.CheckIn,
@@ -95,9 +100,17 @@ func MapGuestBookingSummary(
 		Status:          string(booking.State),
 		Total:           MapMoney(booking.Price.Total),
 		CreatedAt:       booking.CreatedAt,
-		ReviewSubmitted: reviewSubmitted,
+		ReviewSubmitted: review != nil,
 		CanReview:       canReview,
 	}
+	if review != nil {
+		summary.ReviewID = string(review.ID)
+		summary.ReviewRating = review.Rating
+		summary.ReviewText = review.Text
+		createdAt := review.CreatedAt
+		summary.ReviewCreatedAt = &createdAt
+	}
+	return summary
 }
 
 func MapHostBookingSummary(booking *domainbooking.Booking, listing *domainlistings.Listing) HostBookingSummary {

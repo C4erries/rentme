@@ -35,6 +35,7 @@ type User struct {
 	Name         string
 	PasswordHash string
 	Roles        []Role
+	Blocked      bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -52,6 +53,7 @@ type CreateParams struct {
 	Name         string
 	PasswordHash string
 	Roles        []Role
+	Blocked      bool
 	CreatedAt    time.Time
 }
 
@@ -99,6 +101,7 @@ func NewUser(params CreateParams) (*User, error) {
 		Name:         name,
 		PasswordHash: params.PasswordHash,
 		Roles:        roles,
+		Blocked:      params.Blocked,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}, nil
@@ -160,6 +163,11 @@ func (u *User) HasRole(role Role) bool {
 		}
 	}
 	return false
+}
+
+func (u *User) SetBlocked(blocked bool, now time.Time) {
+	u.Blocked = blocked
+	u.touch(now)
 }
 
 func (u *User) touch(now time.Time) {

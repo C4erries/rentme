@@ -117,7 +117,9 @@ func (h AuthHandler) Me(c *gin.Context) {
 func (h AuthHandler) respondAuthError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, authsvc.ErrInvalidCredentials):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Неверный email или пароль"})
+	case errors.Is(err, authsvc.ErrUserBlocked):
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Аккаунт заблокирован"})
 	case errors.Is(err, authsvc.ErrPasswordTooShort),
 		errors.Is(err, domainuser.ErrEmailRequired),
 		errors.Is(err, domainuser.ErrNameRequired):

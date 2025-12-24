@@ -56,17 +56,17 @@ func (h *ListGuestBookingsHandler) Handle(ctx context.Context, q ListGuestBookin
 				h.Logger.Warn("listing snapshot missing for booking", "booking_id", booking.ID, "listing_id", booking.ListingID, "error", err)
 			}
 		}
-		hasReview := false
 		canReview := !booking.Range.CheckOut.After(now)
+		var review *domainreviews.Review
 		if reviews := unit.Reviews(); reviews != nil {
-			if _, err := reviews.ByBooking(execCtx, booking.ID, guestID); err == nil {
-				hasReview = true
+			if existing, err := reviews.ByBooking(execCtx, booking.ID, guestID); err == nil {
+				review = existing
 				canReview = false
 			} else if err != nil && !errors.Is(err, domainreviews.ErrNotFound) && h.Logger != nil {
 				h.Logger.Warn("failed to check review", "booking_id", booking.ID, "guest_id", guestID, "error", err)
 			}
 		}
-		items = append(items, dto.MapGuestBookingSummary(booking, listing, hasReview, canReview))
+		items = append(items, dto.MapGuestBookingSummary(booking, listing, review, canReview))
 	}
 
 	if h.Logger != nil {

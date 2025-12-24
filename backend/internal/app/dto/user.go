@@ -11,6 +11,7 @@ type UserProfile struct {
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
 	Roles     []string  `json:"roles"`
+	Blocked   bool      `json:"blocked"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -33,6 +34,7 @@ func MapUserProfile(user *domainuser.User) UserProfile {
 		Email:     user.Email,
 		Name:      user.Name,
 		Roles:     roles,
+		Blocked:   user.Blocked,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
